@@ -28,7 +28,6 @@ export default function RootLayout({ children }) {
         className="bg-white"
       >
         <Navbar/>
-        <HeroServer/>
         {children}
         <Footer/>
       </body>

@@ -1,8 +1,14 @@
 const express =require ("express");
-const { getUser, updateUser, deleteUser } =require ("../controllers/user.controller.js");
+const { getUser, updateUser, deleteUser , createUser , getAllUsers } =require ("../controllers/user.controller.js");
 const { protect } =require ("../middlewares/auth.middleware.js");
 
 const router = express.Router();
+
+// // POST /api/users  → Create user
+// router.post("/", createUser);
+
+// // GET /api/users  → Get all users (optional)
+// router.get("/", protect, getAllUsers);
 
 // GET /api/users/:id
 router.get("/:id", protect, getUser);
