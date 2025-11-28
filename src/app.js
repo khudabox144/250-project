@@ -9,8 +9,15 @@ const divisionRoutes= require("./routes/division.routes.js")
 const districtRoutes= require("./routes/district.routes.js")
 const AppError = require("./utils/AppError.js");
 
+
+
 const app = express();
+const cors = require('cors');
 app.use(express.json());
+app.use(cors({
+  origin: "http://localhost:3000",
+  credentials: true
+}));
 
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);

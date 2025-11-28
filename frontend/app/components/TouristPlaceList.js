@@ -1,6 +1,7 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import TouristPlaceCard from "./TouristPlaceCard";
+import { getAllTourPlaces } from "../utils/TourPlace_CRUD";
 // import { getAllPlaces } from "../utils/getAllPlaces";  // ← keep for later backend
 
 const TouristPlaceList = () => {
@@ -74,9 +75,11 @@ const TouristPlaceList = () => {
   ];
 
   useEffect(() => {
-    const load = () => {
+    const load = async () => {
       try {
         setLoading(true);
+        const res=await getAllTourPlaces();
+        console.log(res);
         setPlaces(fakePlaces);
       } catch (err) {
         setError(err.message);
