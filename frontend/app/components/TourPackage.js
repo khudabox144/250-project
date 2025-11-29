@@ -55,7 +55,7 @@ const TourPackage = ({ pkg }) => {
             </span>
           </div>
 
-          <Link href={`/package/${packageId}`}>
+          <Link href={`/packages/${packageId}`}>
             <button className="px-4 py-2 sm:py-3 bg-linear-to-r from-teal-500 to-cyan-500 text-white font-bold rounded-lg hover:from-teal-600 hover:to-cyan-600 transition-all duration-300 shadow-md hover:shadow-lg text-sm sm:text-base whitespace-nowrap">
               View More
             </button>

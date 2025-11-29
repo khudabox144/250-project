@@ -51,7 +51,7 @@ const TouristPlaceCard = ({ place }) => {
 
         {/* View Details Link */}
         <Link
-          href={`/places/${placeId}`}
+          href={`/tours/${placeId}`}
           className="mt-auto inline-flex items-center justify-between px-4 py-2.5 bg-linear-to-r from-teal-500 to-cyan-500 hover:from-teal-600 hover:to-cyan-600 text-white font-bold rounded-lg text-center transition-all duration-300 shadow-md hover:shadow-lg hover:translate-y-0.5 group/link text-sm"
         >
           <span>View Details</span>

@@ -1,8 +1,7 @@
 "use client";
 import Link from "next/link";
-import React, { useState } from "react";
-
-// import { useDivisions } from "../hooks/useDivisions"; // Uncomment for real fetching
+import React, { useState, useEffect } from "react";
+import { getAllDivisionsWithDistricts, testDivisionAPI } from "../utils/Location_CRUD";
 import LoadingSpinner from "../common/LoadingSpinner";
 
 // --- Image Map for Divisions ---
@@ -17,78 +16,193 @@ const DIVISION_IMAGES = {
   "Mymensingh": "https://i.pinimg.com/736x/0b/11/88/0b11881451048581d97df71a2b25d64e.jpg"
 };
 
-function slugify(text) {
-  return text.toLowerCase().replace(/\s+/g, "-");
-}
-
-// =============== Fake Data for Testing ===============
-const fakeDivisions = [
+// =============== Fake Data for Testing (fallback) ===============
+const FALLBACK_DIVISIONS = [
   {
-    id: "1",
+    _id: "1",
     name: "Dhaka",
     districts: [
-      { id: "d1", name: "Dhaka", tourPlaces: [{ id: "t1", name: "Lalbagh Fort" }, { id: "t2", name: "Ahsan Manzil" }] },
-      { id: "d2", name: "Gazipur", tourPlaces: [{ id: "t3", name: "Bhawal National Park" }] },
-      { id: "d8", name: "Narayanganj", tourPlaces: [{ id: "t10", name: "Sonargaon" }] },
-      { id: "d9", name: "Munsiganj", tourPlaces: [{ id: "t11", name: "Idrakpur Fort" }] },
-      { id: "d10", name: "Faridpur", tourPlaces: [{ id: "t12", name: "Basar Ban" }] },
+      { _id: "d1", name: "Dhaka", tourPlaces: [] },
+      { _id: "d2", name: "Gazipur", tourPlaces: [] },
+      { _id: "d8", name: "Narayanganj", tourPlaces: [] },
     ],
   },
   {
-    id: "2",
+    _id: "2",
     name: "Chittagong",
     districts: [
-      { id: "d3", name: "Cox's Bazar", tourPlaces: [{ id: "t4", name: "Sea Beach" }] },
-      { id: "d4", name: "Bandarban", tourPlaces: [{ id: "t5", name: "Nilgiri" }, { id: "t6", name: "Boga Lake" }] },
-      { id: "d7", name: "Chittagong", tourPlaces: [{ id: "t9", name: "Patenga Beach" }] },
-      { id: "d11", name: "Comilla", tourPlaces: [{ id: "t13", name: "Mainamati" }] },
-      { id: "d12", name: "Feni", tourPlaces: [{ id: "t14", name: "Feni River" }] },
-      { id: "d13", name: "Noakhali", tourPlaces: [{ id: "t15", name: "Nijhum Dwip" }] },
-      { id: "d14", name: "Lakshmipur", tourPlaces: [{ id: "t16", name: "Ramgati" }] },
-      { id: "d15", name: "Khagrachari", tourPlaces: [{ id: "t17", name: "Alutila Cave" }] },
-      { id: "d16", name: "Rangamati", tourPlaces: [{ id: "t18", name: "Kaptai Lake" }] },
-      { id: "d17", name: "Brahmanbaria", tourPlaces: [{ id: "t19", name: "Kal Bhairab Temple" }] },
-      { id: "d18", name: "Chandpur", tourPlaces: [{ id: "t20", name: "Meghna River" }] },
+      { _id: "d3", name: "Cox's Bazar", tourPlaces: [] },
+      { _id: "d4", name: "Bandarban", tourPlaces: [] },
+      { _id: "d7", name: "Chittagong", tourPlaces: [] },
     ],
   },
   {
-    id: "3",
+    _id: "3",
     name: "Sylhet",
     districts: [
-      { id: "d5", name: "Sylhet", tourPlaces: [{ id: "t7", name: "Ratargul Swamp Forest" }] },
-      { id: "d6", name: "Sunamganj", tourPlaces: [{ id: "t8", name: "Tanguar Haor" }] },
-      { id: "d19", name: "Habiganj", tourPlaces: [{ id: "t21", name: "Satchari National Park" }] },
-      { id: "d20", name: "Moulvibazar", tourPlaces: [{ id: "t22", name: "Lawachara National Park" }] },
+      { _id: "d5", name: "Sylhet", tourPlaces: [] },
+      { _id: "d6", name: "Sunamganj", tourPlaces: [] },
     ],
   },
 ];
 
 // =============== BangladeshTourTest Component ===============
 const BangladeshTourTest = () => {
-  // const { divisions, loading, error } = useDivisions(); // Uncomment for real fetching
-  const divisions = fakeDivisions;
-  const loading = false;
-  const error = null;
+  const [divisions, setDivisions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [expandedDivision, setExpandedDivision] = useState(null);
+  const [usingFallback, setUsingFallback] = useState(false);
+
+  // Fetch divisions with districts from your service
+  useEffect(() => {
+    let mounted = true;
+    
+    const loadDivisions = async () => {
+      setLoading(true);
+      setError(null);
+      setUsingFallback(false);
+      
+      try {
+        // Test the API first to see what's coming
+        console.log("🧪 Starting API test...");
+        const testResults = await testDivisionAPI();
+        console.log("🧪 API Test Results:", testResults);
+        
+        // Use your service function that gets divisions with districts
+        console.log("📡 Fetching divisions with districts...");
+        const divisionsData = await getAllDivisionsWithDistricts();
+        
+        if (mounted) {
+          console.log("🔍 Final processed divisions data:", divisionsData);
+          
+          if (divisionsData && divisionsData.length > 0) {
+            console.log("✅ Divisions data loaded successfully");
+            console.log("📊 Total divisions:", divisionsData.length);
+            
+            // Log each division and its districts
+            divisionsData.forEach((division, index) => {
+              console.log(`🏛️ Division ${index + 1}:`, division.name, "(ID:", division._id + ")");
+              console.log(`   Districts count:`, division.districts?.length || 0);
+              console.log(`   Districts:`, division.districts?.map(d => d.name) || []);
+              if (division.districts && division.districts.length > 0) {
+                console.log(`   Sample district:`, {
+                  name: division.districts[0].name,
+                  id: division.districts[0]._id,
+                  division: division.districts[0].division,
+                  divisionId: division.districts[0].divisionId
+                });
+              }
+            });
+            
+            setDivisions(divisionsData);
+          } else {
+            console.log("⚠️ No data from API, using fallback");
+            setDivisions(FALLBACK_DIVISIONS);
+            setUsingFallback(true);
+          }
+        }
+      } catch (err) {
+        console.error('❌ Error fetching divisions:', err);
+        if (mounted) {
+          setError('Failed to load divisions data: ' + err.message);
+          setDivisions(FALLBACK_DIVISIONS);
+          setUsingFallback(true);
+        }
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    };
+    
+    loadDivisions();
+    
+    return () => { 
+      mounted = false; 
+    };
+  }, []);
+
+  // Helper function to get districts count for a division
+  const getDistrictsCount = (division) => {
+    if (division.districts && Array.isArray(division.districts)) {
+      return division.districts.length;
+    }
+    return 0;
+  };
+
+  // Helper function to get tour places count for a district
+  const getTourPlacesCount = (district) => {
+    if (district.tourPlaces && Array.isArray(district.tourPlaces)) {
+      return district.tourPlaces.length;
+    }
+    if (district.tourPlacesCount !== undefined) {
+      return district.tourPlacesCount;
+    }
+    // If no tour places data, return 0 or a default value
+    return 0;
+  };
+
+  // Helper function to get districts for a division
+  const getDistricts = (division) => {
+    if (division.districts && Array.isArray(division.districts)) {
+      return division.districts;
+    }
+    return [];
+  };
+
+  // Calculate total stats
+  const totalDistricts = divisions.reduce((sum, d) => sum + getDistrictsCount(d), 0);
+  const totalDestinations = divisions.reduce((sum, division) => {
+    const districts = getDistricts(division);
+    return sum + districts.reduce((districtSum, district) => {
+      return districtSum + getTourPlacesCount(district);
+    }, 0);
+  }, 0);
+
+  const handleRetry = () => {
+    window.location.reload();
+  };
+
+  const handleUseFallback = () => {
+    setDivisions(FALLBACK_DIVISIONS);
+    setUsingFallback(true);
+    setError(null);
+  };
 
   if (loading) {
     return (
       <div className="flex flex-col justify-center items-center min-h-screen bg-linear-to-br from-teal-50 to-blue-50">
         <LoadingSpinner size="xl" color="teal" />
-        <p className="mt-4 text-lg text-gray-700 font-semibold">Loading divisions...</p>
+        <p className="mt-4 text-lg text-gray-700 font-semibold">Loading divisions and districts...</p>
+        <p className="mt-2 text-sm text-gray-500">Fetching data from server</p>
       </div>
     );
   }
 
-  if (error) {
+  if (error && divisions.length === 0) {
     return (
       <div className="flex justify-center items-center min-h-screen bg-gray-50 p-4">
         <div className="text-center p-8 bg-red-50 border-2 border-red-200 rounded-2xl shadow-lg max-w-md">
           <div className="text-4xl mb-4">❌</div>
           <h2 className="text-2xl font-bold text-red-700 mb-3">
-            Failed to Load Divisions
+            Failed to Load Data
           </h2>
-          <p className="text-red-600 text-sm">{error}</p>
+          <p className="text-red-600 text-sm mb-4">{error}</p>
+          <div className="space-y-2">
+            <button 
+              onClick={handleRetry} 
+              className="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+            >
+              Try Again
+            </button>
+            <button 
+              onClick={handleUseFallback} 
+              className="w-full px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+            >
+              Use Demo Data
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -103,6 +217,18 @@ const BangladeshTourTest = () => {
       </div>
 
       <div className="relative z-10 max-w-7xl mx-auto">
+        {/* Demo Data Notice */}
+        {usingFallback && (
+          <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <div className="flex items-center">
+              <span className="text-yellow-600 mr-2">⚠️</span>
+              <p className="text-yellow-800 text-sm">
+                Showing demo data. Some features may be limited.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* ========== Header Section ========== */}
         <header className="text-center mb-12 sm:mb-16 lg:mb-20">
           <div className="mb-6 inline-block">
@@ -131,8 +257,16 @@ const BangladeshTourTest = () => {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mt-10">
             {[
               { label: "Divisions", value: divisions.length, icon: "📍" },
-              { label: "Districts", value: divisions.reduce((sum, d) => sum + (d.districts?.length || 0), 0), icon: "🏘️" },
-              { label: "Destinations", value: divisions.reduce((sum, d) => sum + (d.districts?.reduce((sum2, dist) => sum2 + (dist.tourPlaces?.length || 0), 0) || 0), 0), icon: "🎒" },
+              { 
+                label: "Districts", 
+                value: totalDistricts, 
+                icon: "🏘️" 
+              },
+              { 
+                label: "Destinations", 
+                value: totalDestinations, 
+                icon: "🎒" 
+              },
               { label: "Experiences", value: "∞", icon: "✨" }
             ].map((stat, idx) => (
               <div key={idx} className="bg-white/70 backdrop-blur-sm rounded-xl p-3 sm:p-4 shadow-sm hover:shadow-md hover:bg-white/90 transition-all duration-300 border border-white/50">
@@ -144,16 +278,34 @@ const BangladeshTourTest = () => {
           </div>
         </header>
 
+        {/* Debug Info - Remove in production */}
+        {process.env.NODE_ENV === 'development' && (
+          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <h3 className="text-sm font-bold text-blue-800 mb-2">Debug Info:</h3>
+            <p className="text-xs text-blue-700">
+              Divisions: {divisions.length} | Districts: {totalDistricts} | Destinations: {totalDestinations} | Using Fallback: {usingFallback ? 'Yes' : 'No'}
+            </p>
+          </div>
+        )}
+
         {/* ========== Divisions Grid ========== */}
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6 sm:gap-8">
           {divisions.map((division) => {
             const divisionImage = DIVISION_IMAGES[division.name] || "https://images.unsplash.com/photo-1540959733332-8cbd5d1a45f9?w=400&h=300&fit=crop";
+            const districts = getDistricts(division);
+            const districtsCount = getDistrictsCount(division);
+            
+            console.log(`🎯 Rendering ${division.name}:`, {
+              divisionId: division._id,
+              districtsCount,
+              districts: districts.map(d => d.name)
+            });
             
             return (
               <div
-                key={division.id}
+                key={division._id || division.id}
                 className="group h-full"
-                onMouseEnter={() => setExpandedDivision(division.id)}
+                onMouseEnter={() => setExpandedDivision(division._id || division.id)}
                 onMouseLeave={() => setExpandedDivision(null)}
               >
                 <div className="bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-1 border border-gray-100/50 overflow-hidden h-full flex flex-col hover:border-teal-200/70">
@@ -173,7 +325,7 @@ const BangladeshTourTest = () => {
                     {/* Badge - Districts Count */}
                     <div className="absolute top-4 right-4 flex items-center gap-2">
                       <div className="bg-teal-500/95 backdrop-blur-sm text-white px-3 py-1.5 rounded-full text-xs sm:text-sm font-bold shadow-lg hover:bg-teal-400 transition-colors duration-300 cursor-default">
-                        {division.districts?.length || 0}
+                        {districtsCount}
                         <span className="hidden sm:inline ml-1 font-semibold">Districts</span>
                       </div>
                     </div>
@@ -192,43 +344,52 @@ const BangladeshTourTest = () => {
                     <div className="mb-5">
                       <h3 className="text-xs uppercase tracking-widest font-bold text-gray-500 mb-4 flex items-center gap-2">
                         <div className="h-1 w-3 bg-linear-to-r from-teal-600 to-teal-400 rounded-full"></div>
-                        Popular Districts
+                        {districtsCount > 0 ? "Popular Districts" : "No Districts Available"}
                       </h3>
                     </div>
 
-                    {division.districts && division.districts.length > 0 ? (
+                    {districtsCount > 0 ? (
                       <div className="flex-1 flex flex-col">
                         {/* District Grid - Responsive and Clean */}
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 mb-5">
-                          {division.districts.slice(0, 6).map((district) => (
-                            <Link
-                              key={district.id}
-                              href={`/division/${slugify(division.name)}/${slugify(district.name)}`}
-                              className="group/district"
-                            >
-                              <div className="relative p-3 bg-linear-to-br from-teal-50 to-cyan-50 rounded-lg hover:from-teal-100 hover:to-cyan-100 transition-all duration-300 border border-teal-100 hover:border-teal-400 hover:shadow-md overflow-hidden h-full flex flex-col justify-center">
-                                <div className="absolute inset-0 bg-linear-to-r from-teal-500 to-cyan-500 opacity-0 group-hover/district:opacity-5 transition-opacity duration-300"></div>
-                                
-                                <span className="text-xs sm:text-sm text-teal-800 group-hover/district:text-teal-700 font-semibold transition-colors line-clamp-1 relative z-10">
-                                  {district.name}
-                                </span>
-                                
-                                {district.tourPlaces && district.tourPlaces.length > 0 && (
-                                  <div className="flex items-center mt-2 relative z-10">
-                                    <span className="text-xs text-white bg-teal-500 px-2 py-0.5 rounded-full font-bold leading-none">
-                                      {district.tourPlaces.length}
-                                    </span>
-                                  </div>
-                                )}
-                              </div>
-                            </Link>
-                          ))}
+                          {districts.slice(0, 6).map((district, index) => {
+                            console.log(`📍 Rendering district:`, {
+                              name: district.name,
+                              id: district._id,
+                              division: district.division,
+                              hasTourPlaces: getTourPlacesCount(district) > 0
+                            });
+                            
+                            return (
+                              <Link
+                                key={district._id || `district-${index}`}
+                                href={`/district/${district._id || district.id}`}
+                                className="group/district"
+                              >
+                                <div className="relative p-3 bg-linear-to-br from-teal-50 to-cyan-50 rounded-lg hover:from-teal-100 hover:to-cyan-100 transition-all duration-300 border border-teal-100 hover:border-teal-400 hover:shadow-md overflow-hidden h-full flex flex-col justify-center">
+                                  <div className="absolute inset-0 bg-linear-to-r from-teal-500 to-cyan-500 opacity-0 group-hover/district:opacity-5 transition-opacity duration-300"></div>
+                                  
+                                  <span className="text-xs sm:text-sm text-teal-800 group-hover/district:text-teal-700 font-semibold transition-colors line-clamp-1 relative z-10">
+                                    {district.name}
+                                  </span>
+                                  
+                                  {getTourPlacesCount(district) > 0 && (
+                                    <div className="flex items-center mt-2 relative z-10">
+                                      <span className="text-xs text-white bg-teal-500 px-2 py-0.5 rounded-full font-bold leading-none">
+                                        {getTourPlacesCount(district)}
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
+                              </Link>
+                            );
+                          })}
 
-                          {division.districts.length > 6 && (
-                            <Link href={`/division/${slugify(division.name)}`} className="group/more">
+                          {districtsCount > 6 && (
+                            <Link href={`/division/${division._id || division.id}`} className="group/more">
                               <div className="p-3 bg-linear-to-br from-gray-100 to-gray-50 rounded-lg hover:from-gray-200 hover:to-gray-100 transition-all duration-300 border border-gray-200 hover:border-gray-400 hover:shadow-md flex items-center justify-center h-full">
                                 <span className="text-xs sm:text-sm text-gray-600 group-hover/more:text-gray-800 font-bold transition-colors">
-                                  +{division.districts.length - 6}
+                                  +{districtsCount - 6}
                                 </span>
                               </div>
                             </Link>
@@ -237,7 +398,7 @@ const BangladeshTourTest = () => {
 
                         {/* View All Link Button */}
                         <Link
-                          href={`/division/${slugify(division.name)}`}
+                          href={`/division/${division._id || division.id}`}
                           className="mt-auto inline-flex items-center justify-between w-full px-4 py-2.5 bg-linear-to-r from-teal-500 to-cyan-500 text-white font-bold rounded-lg hover:from-teal-600 hover:to-cyan-600 transition-all duration-300 shadow-md hover:shadow-lg hover:translate-y-0.5 group/link text-sm"
                         >
                           <span>Explore {division.name}</span>
@@ -247,8 +408,11 @@ const BangladeshTourTest = () => {
                         </Link>
                       </div>
                     ) : (
-                      <div className="text-center py-6 text-gray-400">
-                        <p className="text-sm italic">No districts available</p>
+                      <div className="text-center py-6 text-gray-400 flex-1 flex flex-col items-center justify-center">
+                        <p className="text-sm italic mb-2">No districts available for this division</p>
+                        <div className="text-xs bg-gray-200 px-2 py-1 rounded text-gray-600">
+                          ID: {division._id}
+                        </div>
                       </div>
                     )}
                   </div>
@@ -266,7 +430,7 @@ const BangladeshTourTest = () => {
             <p className="text-white/90 mb-6 text-sm sm:text-base leading-relaxed">
               Discover exclusive tour packages and create unforgettable memories across all eight divisions of Bangladesh.
             </p>
-            <Link href="#recommendation">
+            <Link href="/packages">
               <button className="w-full sm:w-auto px-8 py-3 bg-white text-teal-600 font-bold rounded-xl hover:bg-gray-100 transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 transform">
                 View All Packages →
               </button>

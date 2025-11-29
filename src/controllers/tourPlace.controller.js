@@ -61,9 +61,14 @@ const parseLocation = (location, body) => {
   return undefined;
 };
 
-// Get all approved tour places
+// Get all approved tour places (supports optional filters: ?district=...&division=...)
 const getAllTourPlaces = catchAsync(async (req, res, next) => {
-  const tours = await TourPlace.find({ isApproved: true })
+  const { district, division } = req.query;
+  const filter = { isApproved: true };
+  if (district) filter.district = district;
+  if (division) filter.division = division;
+
+  const tours = await TourPlace.find(filter)
     .populate("division district")
     .sort({ createdAt: -1 });
   res.status(200).json({ status: "success", results: tours.length, data: tours });
