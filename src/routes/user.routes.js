@@ -10,6 +10,10 @@ const router = express.Router();
 // // GET /api/users  → Get all users (optional)
 // router.get("/", protect, getAllUsers);
 
+// Current user endpoints (must be before /:id)
+router.get('/me/tours', protect, (req, res, next) => require('../controllers/user.controller').getMyTours(req, res, next));
+router.get('/me/packages', protect, (req, res, next) => require('../controllers/user.controller').getMyPackages(req, res, next));
+
 // GET /api/users/:id
 router.get("/:id", protect, getUser);
 

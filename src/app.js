@@ -11,13 +11,18 @@ const AppError = require("./utils/AppError.js");
 
 
 
+const path = require("path");
 const app = express();
 const cors = require('cors');
 app.use(express.json());
+// Allow frontend on localhost:3000 in development. Adjust origin for production.
 app.use(cors({
   origin: "http://localhost:3000",
   credentials: true
 }));
+
+// Serve uploaded files (so frontend can access image URLs at /uploads/filename)
+app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);

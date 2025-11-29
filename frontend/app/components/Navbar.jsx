@@ -32,7 +32,7 @@ const Navbar = () => {
               {/* Nav Links */}
               <nav className="hidden md:flex items-center space-x-6 text-sm font-medium text-gray-600">
                 <a
-                  href="#spots"
+                  href="/allDestination"
                   className="hover:text-blue-600 transition-colors duration-200"
                 >
                   Destinations

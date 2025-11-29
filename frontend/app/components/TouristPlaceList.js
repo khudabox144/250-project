@@ -2,7 +2,6 @@
 import React, { useEffect, useState } from "react";
 import TouristPlaceCard from "./TouristPlaceCard";
 import { getAllTourPlaces } from "../utils/TourPlace_CRUD";
-// import { getAllPlaces } from "../utils/getAllPlaces";  // ← keep for later backend
 
 const TouristPlaceList = () => {
   const [places, setPlaces] = useState([]);
@@ -11,85 +10,23 @@ const TouristPlaceList = () => {
   const [query, setQuery] = useState("");
   const [displayCount, setDisplayCount] = useState(8);
 
-  // --------------------------
-  //  Temporary Fake Data
-  // --------------------------
-  const fakePlaces = [
-    {
-      _id: "691ef57e07634647b6769abc",
-      name: "Cox's Bazar Beach",
-      description:
-        "The longest natural sandy sea beach in the world, perfect for vacation and relaxation.",
-      images: [
-        "https://i.ibb.co/9hcYy1r/cox1.jpg",
-        "https://i.ibb.co/kKmT3Sc/cox2.jpg",
-      ],
-      division: "691ef40507634647b6769ab4",
-      district: "691ef4c707634647b6769ab9",
-      location: {
-        type: "Point",
-        coordinates: [91.9743, 21.4272],
-      },
-      isApproved: true,
-      createdBy: "691eb864f9e2d6e06b6ac088",
-      createdAt: "2025-11-20T11:03:26.944+00:00",
-    },
-    {
-      _id: "691ef57e07634647b6769abd",
-      name: "Sajek Valley",
-      description:
-        "A beautiful tourist destination in the Chittagong Hill Tracts known as the 'Roof of Rangamati.'",
-      images: [
-        "https://i.ibb.co/hYJ9tDd/sajek1.jpg",
-        "https://i.ibb.co/3Nbp2QN/sajek2.jpg",
-      ],
-      division: "691ef40507634647b6769ab4",
-      district: "691ef4c707634647b6769ac0",
-      location: {
-        type: "Point",
-        coordinates: [92.2896, 23.3819],
-      },
-      isApproved: true,
-      createdBy: "691eb864f9e2d6e06b6ac088",
-      createdAt: "2025-11-20T11:10:10.944+00:00",
-    },
-    {
-      _id: "691ef57e07634647b6769abe",
-      name: "Sundarbans Mangrove Forest",
-      description:
-        "The largest mangrove forest in the world, home to the Royal Bengal Tiger.",
-      images: [
-        "https://i.ibb.co/9s5K6cK/sundarban1.jpg",
-        "https://i.ibb.co/d7H0fmG/sundarban2.jpg",
-      ],
-      division: "691ef40507634647b6769ab2",
-      district: "691ef4c707634647b6769ab7",
-      location: {
-        type: "Point",
-        coordinates: [89.9431, 22.1135],
-      },
-      isApproved: true,
-      createdBy: "691eb864f9e2d6e06b6ac088",
-      createdAt: "2025-11-21T09:55:26.944+00:00",
-    },
-  ];
-
   useEffect(() => {
     const load = async () => {
       try {
         setLoading(true);
-        const res=await getAllTourPlaces();
-        console.log(res);
-        setPlaces(fakePlaces);
+        setError(null);
+        const data = await getAllTourPlaces();
+        console.log("Tourist Places Data:", data);
+        setPlaces(Array.isArray(data) ? data : data.data || []);
       } catch (err) {
-        setError(err.message);
+        console.error("Error loading places:", err);
+        setError(err.message || "Failed to load places. Please try again.");
       } finally {
         setLoading(false);
       }
     };
 
     load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Filter by search

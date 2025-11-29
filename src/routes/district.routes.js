@@ -1,11 +1,31 @@
-// routes/district.routes.js
+// // routes/district.routes.js
+// const express = require("express");
+// const { getDistrictsByDivision, createDistrict } = require("../controllers/district.controller.js");
+// const { protect ,restrictTo } = require("../middlewares/auth.middleware.js");
+
+// const router = express.Router();
+
+// router.get("/:divisionId", getDistrictsByDivision);
+// router.post("/", protect, restrictTo("admin"), createDistrict);
+
+// module.exports = router;
 const express = require("express");
-const { getDistrictsByDivision, createDistrict } = require("../controllers/district.controller.js");
-const { protect ,restrictTo } = require("../middlewares/auth.middleware.js");
+const {
+  getAllDistricts,
+  getDistrictsByDivision,
+  createDistrict
+} = require("../controllers/district.controller");
+const { protect, restrictTo } = require("../middlewares/auth.middleware");
 
 const router = express.Router();
 
-router.get("/:divisionId", getDistrictsByDivision);
+// GET ALL DISTRICTS
+router.get("/", getAllDistricts);
+
+// GET DISTRICTS BY DIVISION
+router.get("/division/:divisionId", getDistrictsByDivision);
+
+// CREATE DISTRICT
 router.post("/", protect, restrictTo("admin"), createDistrict);
 
 module.exports = router;

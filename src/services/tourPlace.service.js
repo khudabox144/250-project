@@ -25,8 +25,12 @@ const getToursByDistrict = async (district) => {
   return await TourPlace.find({ district, isApproved: true });
 };
 
+const getToursByUser = async (userId) => {
+  return await TourPlace.find({ createdBy: userId }).sort({ createdAt: -1 });
+};
+
 const getTourDetails = async (id) => {
   return await TourPlace.findById(id);
 };
 
-module.exports = { createTourPlace, approveTourPlace, rejectTourPlace, getApprovedTours, getToursByDistrict, getTourDetails };
+module.exports = { createTourPlace, approveTourPlace, rejectTourPlace, getApprovedTours, getToursByDistrict, getTourDetails, getToursByUser };

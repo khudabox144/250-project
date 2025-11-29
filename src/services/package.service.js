@@ -25,6 +25,11 @@ const getPackagesByVendor = async (vendorId) => {
   return await TourPackage.find({ vendor: vendorId, isApproved: true });
 };
 
+// Return vendor packages including pending (for vendor dashboard)
+const getPackagesByVendorAll = async (vendorId) => {
+  return await TourPackage.find({ vendor: vendorId }).sort({ createdAt: -1 });
+};
+
 const getPackageDetails = async (id) => {
   return await TourPackage.findById(id);
 };
@@ -36,4 +41,5 @@ module.exports = {
   getApprovedPackages,
   getPackagesByVendor,
   getPackageDetails,
+  getPackagesByVendorAll,
 };

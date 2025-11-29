@@ -1,408 +1,495 @@
 "use client";
-import React, { useState, useEffect, useCallback } from "react";
-import LoadingSpinner from "../common/LoadingSpinner"; // Reusing the spinner component
-
-// --- Configuration ---
-// Main API endpoint for posting a new tour place (using FormData for file upload)
-const API_URL = "http://localhost:5000/api/tours"; 
-// API endpoints for dependent resources
-const DIVISION_API_URL = "http://localhost:5000/api/divisions"; 
-const DISTRICT_API_URL = "http://localhost:5000/api/districts"; 
+import React, { useState, useEffect, useCallback, useMemo } from "react";
+import LoadingSpinner from "../common/LoadingSpinner";
+import { createTourPlace } from "../utils/TourPlace_CRUD";
+import { getAllDivisions, getAllDistricts } from "../utils/Location_CRUD";
 
 const AddTourPlace = () => {
-    // Schema fields
-    const [formData, setFormData] = useState({
-        name: "",
-        description: "",
-        images: null, // Holds FileList object
-        division: "",
-        district: "",
-        location: {
-            type: "Point",
-            coordinates: [90.3994, 23.7778], // Default Longitude, Latitude
-        },
-        isApproved: false, 
-        createdBy: "60c728b9c8d1f7001c8c4e99", // Mock User ID - this should ideally come from an authentication context
+  const [formData, setFormData] = useState({
+    name: "",
+    description: "",
+    images: null,
+    division: "",
+    district: "",
+    location: { type: "Point", coordinates: [90.3994, 23.7778] },
+  });
+
+  const [availableDivisions, setAvailableDivisions] = useState([]);
+  const [allDistricts, setAllDistricts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [message, setMessage] = useState(null);
+  const [error, setError] = useState(null);
+
+  const fetchDependencies = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      // Fetch divisions and districts from database or fallback
+      const divisionsData = await getAllDivisions();
+      const districtsData = await getAllDistricts();
+
+      setAvailableDivisions(divisionsData || []);
+      setAllDistricts(districtsData || []);
+
+      console.log("✅ Divisions loaded:", divisionsData?.length);
+      console.log("✅ Districts loaded:", districtsData?.length);
+    } catch (err) {
+      console.error("Error loading location data:", err);
+      setError("Failed to load location data. Please try refreshing.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchDependencies();
+  }, [fetchDependencies]);
+
+  // Memoized filtered districts
+  const filteredDistricts = useMemo(() => {
+    if (!formData.division) return [];
+    
+    console.log("🔍 Filtering with division:", formData.division);
+    console.log("📊 All districts:", allDistricts);
+    // Support multiple district shapes coming from API or fallback:
+    // - { division: '<id>' }
+    // - { division: { _id: '<id>' } }
+    // - { divisionId: '<id>' } (legacy fallback)
+    const filtered = allDistricts.filter((dist) => {
+      const divisionField = dist.divisionId || dist.division;
+      let divId = divisionField;
+      if (divisionField && typeof divisionField === 'object') {
+        divId = divisionField._id || divisionField.toString();
+      }
+      const match = String(divId) === String(formData.division);
+      console.log(`District: ${dist.name}, divisionField: ${JSON.stringify(divisionField)}, match: ${match}`);
+      return match;
     });
 
-    const [availableDivisions, setAvailableDivisions] = useState([]);
-    const [allDistricts, setAllDistricts] = useState([]); // Store all districts fetched from the server
-    const [loading, setLoading] = useState(true);
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const [message, setMessage] = useState(null); // Success or Error message
-    const [error, setError] = useState(null); // Dedicated error state for initial fetch
+    console.log("✅ Filtered districts:", filtered.length, filtered);
+    return filtered;
+  }, [allDistricts, formData.division]);
 
-    // --- Fetch Division and District Data on Mount ---
-    const fetchDependencies = useCallback(async () => {
-        setLoading(true);
-        setError(null);
-        try {
-            // 1. Fetch Divisions
-            const [divRes, distRes] = await Promise.all([
-                fetch(DIVISION_API_URL),
-                fetch(DISTRICT_API_URL),
-            ]);
-
-            if (!divRes.ok || !distRes.ok) {
-                throw new Error("Failed to fetch location data from the server.");
-            }
-
-            const divisionData = await divRes.json();
-            const districtData = await distRes.json();
-            
-            // Assuming your server returns data in the format: { success: true, data: [...] }
-            setAvailableDivisions(divisionData.data || []);
-            setAllDistricts(districtData.data || []);
-
-        } catch (err) {
-            console.error("Dependency Fetch Error:", err);
-            setError(`Failed to load necessary location data. Please ensure the server is running at ${window.location.protocol}//${window.location.host} and the API endpoints are correct.`);
-        } finally {
-            setLoading(false);
-        }
-    }, []);
-
-    useEffect(() => {
-        fetchDependencies();
-    }, [fetchDependencies]);
-
-
-    // --- Filter Districts when Division changes ---
-    const filteredDistricts = allDistricts.filter(
-        (dist) => dist.division === formData.division // Assuming dist object has a 'division' field referencing the division ID
-    );
-
-    useEffect(() => {
-        // Reset district selection if the previous one is invalid for the new division
-        if (formData.division && !filteredDistricts.some(d => d._id === formData.district)) {
-            setFormData(prev => ({ ...prev, district: "" }));
-        }
-        if (!formData.division) {
-            setFormData(prev => ({ ...prev, district: "" }));
-        }
-    }, [formData.division, formData.district, filteredDistricts]); 
-
-    // --- Handlers ---
-
-    const handleChange = (e) => {
-        const { name, value } = e.target;
-        setFormData(prev => ({ ...prev, [name]: value }));
-    };
-
-    const handleCoordinatesChange = (index, value) => {
-        const numericValue = parseFloat(value);
-        if (!isNaN(numericValue)) {
-            const newCoordinates = [...formData.location.coordinates];
-            newCoordinates[index] = numericValue;
-            setFormData(prev => ({
-                ...prev,
-                location: { ...prev.location, coordinates: newCoordinates }
-            }));
-        }
-    };
-    
-    // Optional: Get actual coordinates from the browser
-    const getMyCoordinates = () => {
-        setMessage({ type: 'info', text: 'Attempting to fetch location...' });
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-                (position) => {
-                    setFormData(prev => ({
-                        ...prev,
-                        location: {
-                            ...prev.location,
-                            // GeoJSON stores coordinates as [longitude, latitude]
-                            coordinates: [position.coords.longitude, position.coords.latitude], 
-                        }
-                    }));
-                    setMessage({ type: 'success', text: 'Coordinates set from current location!' });
-                },
-                (error) => {
-                    console.error("Geolocation error:", error);
-                    setMessage({ type: 'error', text: 'Could not fetch location. Please enter manually.' });
-                },
-                { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
-            );
-        } else {
-            setMessage({ type: 'error', text: 'Geolocation is not supported by your browser.' });
-        }
-    };
-
-    // HANDLER UPDATED for file input
-    const handleImageChange = (e) => {
-        // Set the files property (FileList) directly
-        setFormData(prev => ({ ...prev, images: e.target.files }));
-    };
-
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        setIsSubmitting(true);
-        setMessage(null);
-        
-        // --- Create FormData for multipart/form-data submission (required for file uploads) ---
-        const data = new FormData();
-        data.append('name', formData.name);
-        data.append('description', formData.description);
-        data.append('division', formData.division);
-        data.append('district', formData.district);
-        
-        // GeoJSON object must be stringified before appending to FormData
-        data.append('location', JSON.stringify(formData.location)); 
-        
-        // Append image files
-        if (formData.images) {
-            for (let i = 0; i < formData.images.length; i++) {
-                // Key 'images' MUST match the server's uploadImages.array("images") field name
-                data.append('images', formData.images[i]); 
-            }
-        }
-        
-        // Append other fields (these are typically ignored/overridden by the server)
-        data.append('isApproved', formData.isApproved);
-        data.append('createdBy', formData.createdBy);
-        
-        console.log("Submitting FormData to server:", data);
-
-        // --- Actual POST Request Logic ---
-        try {
-            const res = await fetch(API_URL, {
-                method: "POST",
-                // IMPORTANT: Do NOT set Content-Type header. The browser handles 
-                // setting Content-Type: multipart/form-data with the correct boundary.
-                body: data, 
-            });
-
-            if (!res.ok) {
-                // If the server requires authentication, this is where you'd see a 401/403 error.
-                const errorData = await res.json();
-                throw new Error(errorData.message || "Failed to add tour place to server. (Check server logs, network, and auth token)");
-            }
-
-            // const result = await res.json(); // Uncomment to process server response
-            
-            setMessage({ type: 'success', text: 'Tour Place added successfully! It is now pending approval.' });
-            
-            // Reset form 
-            setFormData({
-                name: "",
-                description: "",
-                images: null,
-                division: "",
-                district: "",
-                location: { type: "Point", coordinates: [90.3994, 23.7778] },
-                isApproved: false, 
-                createdBy: formData.createdBy, 
-            });
-            // HACK: To clear the file input field UI after submission
-            e.target.reset(); 
-
-        } catch (error) {
-            console.error("Submission Error:", error);
-            setMessage({ type: 'error', text: error.message || 'An unexpected error occurred during submission.' });
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
-
-    if (loading) {
-        return (
-            <div className="flex flex-col items-center justify-center min-h-[50vh] bg-gray-50 p-8 rounded-xl shadow-lg">
-                <LoadingSpinner size="xl" color="teal" />
-                <p className="mt-4 text-lg font-medium text-gray-700">Loading location data from server...</p>
-            </div>
-        );
+  // Fixed useEffect - no infinite loop
+  useEffect(() => {
+    if (formData.division && !filteredDistricts.some(d => d._id === formData.district)) {
+      setFormData(prev => ({ ...prev, district: "" }));
     }
-    
-    // Display fatal error if data fetch failed
-    if (error) {
-        return (
-            <div className="max-w-3xl mx-auto p-8 bg-red-50 border border-red-300 rounded-xl my-8 shadow-lg">
-                <h2 className="text-2xl font-bold text-red-800 mb-4">Connection Error</h2>
-                <p className="text-red-700">{error}</p>
-                <button 
-                    onClick={fetchDependencies} 
-                    className="mt-4 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition font-medium"
-                >
-                    Try Reloading Data
-                </button>
-            </div>
-        );
+    if (!formData.division) {
+      setFormData(prev => ({ ...prev, district: "" }));
     }
+  }, [formData.division, formData.district, filteredDistricts]);
 
+  // Input handlers
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleCoordinatesChange = (index, value) => {
+    const numericValue = parseFloat(value);
+    if (!isNaN(numericValue)) {
+      const newCoordinates = [...formData.location.coordinates];
+      newCoordinates[index] = numericValue;
+      setFormData(prev => ({ 
+        ...prev, 
+        location: { ...prev.location, coordinates: newCoordinates } 
+      }));
+    }
+  };
+
+  const getMyCoordinates = () => {
+    setMessage({ type: "info", text: "Fetching current location..." });
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setFormData(prev => ({
+            ...prev,
+            location: {
+              ...prev.location,
+              coordinates: [position.coords.longitude, position.coords.latitude],
+            }
+          }));
+          setMessage({ type: "success", text: "Coordinates set from current location!" });
+        },
+        (err) => {
+          const errorMessage = 
+            err.code === 1 ? "Location access denied. Please allow location access." :
+            err.code === 2 ? "Location unavailable. Please try again." :
+            "Could not fetch location. Please try again.";
+          setMessage({ type: "error", text: errorMessage });
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+      );
+    } else {
+      setMessage({ type: "error", text: "Geolocation not supported by your browser." });
+    }
+  };
+
+  const handleImageChange = (e) => {
+    const files = e.target.files;
+    if (files && files.length > 5) {
+      setMessage({ type: "error", text: "Maximum 5 images allowed" });
+      return;
+    }
+    setFormData(prev => ({ ...prev, images: files }));
+  };
+
+  // const handleSubmit = async (e) => {
+  //   e.preventDefault();
+  //   setIsSubmitting(true);
+  //   setMessage(null);
+
+  //   // Validation
+  //   if (!formData.images || formData.images.length === 0) {
+  //     setMessage({ type: "error", text: "Please select at least one image" });
+  //     setIsSubmitting(false);
+  //     return;
+  //   }
+
+  //   if (!formData.division || !formData.district) {
+  //     setMessage({ type: "error", text: "Please select both division and district" });
+  //     setIsSubmitting(false);
+  //     return;
+  //   }
+
+  //   try {
+  //     // Call the createTourPlace function with formData
+  //     const result = await createTourPlace(formData);
+      
+  //     if (result.status === "success" || result.data) {
+  //       setMessage({ 
+  //         type: "success", 
+  //         text: "Tour place submitted successfully! It will be visible after admin approval." 
+  //       });
+
+  //       // Reset form
+  //       setFormData({
+  //         name: "",
+  //         description: "",
+  //         images: null,
+  //         division: "",
+  //         district: "",
+  //         location: { type: "Point", coordinates: [90.3994, 23.7778] },
+  //       });
+
+  //       // Reset file input
+  //       const fileInput = document.querySelector('input[type="file"]');
+  //       if (fileInput) fileInput.value = "";
+  //     } else {
+  //       setMessage({ 
+  //         type: "error", 
+  //         text: result.message || "Submission failed. Please try again." 
+  //       });
+  //     }
+  //   } catch (err) {
+  //     console.error("Submission error:", err);
+  //     setMessage({ 
+  //       type: "error", 
+  //       text: err.response?.data?.message || err.message || "Submission failed. Please try again." 
+  //     });
+  //   } finally {
+  //     setIsSubmitting(false);
+  //   }
+  // };
+
+  const handleSubmit = async (e) => {
+  e.preventDefault();
+  setIsSubmitting(true);
+  setMessage(null);
+
+  // Validation
+  if (!formData.images || formData.images.length === 0) {
+    setMessage({ type: "error", text: "Please select at least one image" });
+    setIsSubmitting(false);
+    return;
+  }
+
+  if (!formData.division || !formData.district) {
+    setMessage({ type: "error", text: "Please select both division and district" });
+    setIsSubmitting(false);
+    return;
+  }
+
+  try {
+    // Use FormData to handle files and nested objects
+    const dataToSend = new FormData();
+    dataToSend.append("name", formData.name);
+    dataToSend.append("description", formData.description);
+    dataToSend.append("division", formData.division);
+    dataToSend.append("district", formData.district);
+
+    // Stringify the location object
+    dataToSend.append("location", JSON.stringify(formData.location));
+
+    // Append images
+    Array.from(formData.images).forEach((file) => {
+      dataToSend.append("images", file);
+    });
+
+    const result = await createTourPlace(dataToSend, true); // pass a flag to indicate FormData
+
+    if (result.status === "success" || result.data) {
+      setMessage({
+        type: "success",
+        text: "Tour place submitted successfully! It will be visible after admin approval.",
+      });
+
+      // Reset form
+      setFormData({
+        name: "",
+        description: "",
+        images: null,
+        division: "",
+        district: "",
+        location: { type: "Point", coordinates: [90.3994, 23.7778] },
+      });
+
+      // Reset file input
+      const fileInput = document.querySelector('input[type="file"]');
+      if (fileInput) fileInput.value = "";
+    } else {
+      setMessage({
+        type: "error",
+        text: result.message || "Submission failed. Please try again.",
+      });
+    }
+  } catch (err) {
+    console.error("Submission error:", err);
+    setMessage({
+      type: "error",
+      text: err.response?.data?.message || err.message || "Submission failed. Please try again.",
+    });
+  } finally {
+    setIsSubmitting(false);
+  }
+};
+
+
+  if (loading) {
     return (
-        <div className="max-w-3xl mx-auto p-4 sm:p-8 bg-white shadow-2xl rounded-3xl my-8 border-t-8 border-teal-500">
-            <h1 className="text-3xl font-extrabold text-center mb-8 text-gray-900">
-                ➕ Submit New Tour Place
-            </h1>
-
-            {/* Status Message Display */}
-            {message && (
-                <div 
-                    className={`p-4 mb-6 rounded-xl font-medium ${
-                        message.type === 'success' ? 'bg-green-100 text-green-700 border-green-300' : 
-                        message.type === 'error' ? 'bg-red-100 text-red-700 border-red-300' : 
-                        'bg-blue-100 text-blue-700 border-blue-300'
-                    } border`}
-                >
-                    {message.text}
-                </div>
-            )}
-
-            <form onSubmit={handleSubmit} className="space-y-6">
-                
-                {/* 1. Name */}
-                <div className="form-group">
-                    <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">Place Name <span className="text-red-500">*</span></label>
-                    <input
-                        type="text"
-                        id="name"
-                        name="name"
-                        value={formData.name}
-                        onChange={handleChange}
-                        required
-                        placeholder="e.g., Sundarbans Mangrove Forest"
-                        className="w-full p-3 border border-gray-300 rounded-lg focus:border-teal-500 focus:ring-teal-500 transition"
-                    />
-                </div>
-
-                {/* 2. Description */}
-                <div className="form-group">
-                    <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                    <textarea
-                        id="description"
-                        name="description"
-                        value={formData.description}
-                        onChange={handleChange}
-                        rows={4}
-                        placeholder="A brief overview of the place, history, and major attractions."
-                        className="w-full p-3 border border-gray-300 rounded-lg focus:border-teal-500 focus:ring-teal-500 transition resize-none"
-                    />
-                </div>
-
-                {/* 3. Division & District (Dropdowns) */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    {/* Division */}
-                    <div className="form-group">
-                        <label htmlFor="division" className="block text-sm font-medium text-gray-700 mb-1">Division <span className="text-red-500">*</span></label>
-                        <select
-                            id="division"
-                            name="division"
-                            value={formData.division}
-                            onChange={handleChange}
-                            required
-                            className="w-full p-3 border border-gray-300 rounded-lg bg-white focus:border-teal-500 focus:ring-teal-500 transition"
-                        >
-                            <option value="" disabled>Select Division</option>
-                            {availableDivisions.map(div => (
-                                <option key={div._id} value={div._id}>{div.name}</option>
-                            ))}
-                        </select>
-                    </div>
-
-                    {/* District */}
-                    <div className="form-group">
-                        <label htmlFor="district" className="block text-sm font-medium text-gray-700 mb-1">District <span className="text-red-500">*</span></label>
-                        <select
-                            id="district"
-                            name="district"
-                            value={formData.district}
-                            onChange={handleChange}
-                            required
-                            disabled={!formData.division || filteredDistricts.length === 0}
-                            className="w-full p-3 border border-gray-300 rounded-lg bg-white focus:border-teal-500 focus:ring-teal-500 transition disabled:bg-gray-100 disabled:text-gray-500"
-                        >
-                            <option value="" disabled>Select District</option>
-                            {filteredDistricts.map(dist => (
-                                <option key={dist._id} value={dist._id}>{dist.name}</option>
-                            ))}
-                        </select>
-                        {!formData.division && (
-                            <p className="text-xs text-red-500 mt-1">Please select a Division first.</p>
-                        )}
-                    </div>
-                </div>
-
-                {/* 4. Location Coordinates (GeoJSON Point) */}
-                <div className="form-group border-t pt-6">
-                    <label className="block text-base font-semibold text-gray-800 mb-3">Location Coordinates (Longitude, Latitude) <span className="text-red-500">*</span></label>
-                    
-                    <div className="grid grid-cols-2 gap-4">
-                        {/* Longitude */}
-                        <input
-                            type="number"
-                            step="0.0001"
-                            placeholder="Longitude (e.g., 90.3994)"
-                            value={formData.location.coordinates[0]}
-                            onChange={(e) => handleCoordinatesChange(0, e.target.value)}
-                            required
-                            className="w-full p-3 border border-gray-300 rounded-lg focus:border-teal-500 focus:ring-teal-500 transition"
-                        />
-                        {/* Latitude */}
-                        <input
-                            type="number"
-                            step="0.0001"
-                            placeholder="Latitude (e.g., 23.7778)"
-                            value={formData.location.coordinates[1]}
-                            onChange={(e) => handleCoordinatesChange(1, e.target.value)}
-                            required
-                            className="w-full p-3 border border-gray-300 rounded-lg focus:border-teal-500 focus:ring-teal-500 transition"
-                        />
-                    </div>
-                    
-                    <button
-                        type="button"
-                        onClick={getMyCoordinates}
-                        className="mt-3 w-full bg-blue-500 text-white p-3 rounded-lg hover:bg-blue-600 transition font-medium shadow-md flex items-center justify-center space-x-2"
-                    >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                        <span>Use My Current Location</span>
-                    </button>
-                    <p className="text-xs text-gray-500 mt-2">
-                        Format: GeoJSON Point [Longitude, Latitude]. Default is Dhaka.
-                    </p>
-                </div>
-
-                {/* 5. Images - UPDATED to handle file input */}
-                <div className="form-group border-t pt-6">
-                    <label htmlFor="images" className="block text-sm font-medium text-gray-700 mb-1">Upload Images (Multiple Files) <span className="text-red-500">*</span></label>
-                    <input
-                        type="file"
-                        id="images"
-                        name="images"
-                        onChange={handleImageChange}
-                        required 
-                        multiple 
-                        accept="image/*"
-                        className="w-full p-3 border border-gray-300 rounded-lg focus:border-teal-500 focus:ring-teal-500 transition file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100"
-                    />
-                    <p className="text-xs text-gray-500 mt-2">
-                        Select one or more image files for the tour place. (Required by server)
-                    </p>
-                </div>
-                
-                {/* 6. Submission Button */}
-                <div className="pt-4">
-                    <button
-                        type="submit"
-                        disabled={isSubmitting}
-                        className={`w-full flex items-center justify-center px-6 py-3 rounded-xl font-bold text-lg transition-all duration-300 shadow-xl ${
-                            isSubmitting 
-                                ? 'bg-gray-400 text-gray-700 cursor-not-allowed' 
-                                : 'bg-teal-600 text-white hover:bg-teal-700 hover:shadow-2xl transform hover:scale-[1.01]'
-                        }`}
-                    >
-                        {isSubmitting && <LoadingSpinner size="sm" color="white" />}
-                        <span className={isSubmitting ? 'ml-2' : ''}>
-                            {isSubmitting ? "Submitting..." : "Add Tour Place"}
-                        </span>
-                    </button>
-                    <p className="text-center text-sm text-gray-500 mt-3">
-                        * Submission requires administrator approval (`isApproved: false`)
-                    </p>
-                </div>
-            </form>
-        </div>
+      <div className="flex flex-col items-center justify-center min-h-[60vh] bg-gradient-to-br from-sky-50 to-blue-50 p-8">
+        <LoadingSpinner size="xl" color="blue" />
+        <p className="mt-4 text-blue-700 font-medium">Loading location data...</p>
+      </div>
     );
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-2xl mx-auto p-8 bg-red-50 border border-red-200 rounded-2xl text-center shadow-lg mt-8">
+        <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+          </svg>
+        </div>
+        <h2 className="text-2xl font-bold text-red-800 mb-2">Connection Error</h2>
+        <p className="text-red-700 mb-6">{error}</p>
+        <button
+          onClick={fetchDependencies}
+          className="bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 transition-colors font-medium"
+        >
+          Try Again
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-4xl mx-auto text-black p-6 bg-gradient-to-br from-white to-blue-50 shadow-xl rounded-3xl mt-8 border border-blue-100">
+      {/* Header */}
+      <div className="text-center mb-8">
+        <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <svg className="w-10 h-10 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a2 2 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+        </div>
+        <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-teal-600 bg-clip-text text-transparent">
+          Add New Tour Place
+        </h1>
+        <p className="text-gray-600 mt-2">Share your favorite destination with the community</p>
+      </div>
+
+      {/* Message Alert */}
+      {message && (
+        <div className={`p-4 mb-6 rounded-xl border-2 font-medium flex items-start space-x-3 ${
+          message.type === "success" ? "bg-green-50 border-green-200 text-green-800" :
+          message.type === "error" ? "bg-red-50 border-red-200 text-red-800" :
+          "bg-blue-50 border-blue-200 text-blue-800"
+        }`}>
+          <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 ${
+            message.type === "success" ? "bg-green-100 text-green-600" :
+            message.type === "error" ? "bg-red-100 text-red-600" :
+            "bg-blue-100 text-blue-600"
+          }`}>
+            {message.type === "success" && "✓"}
+            {message.type === "error" && "!"}
+            {message.type === "info" && "i"}
+          </div>
+          <p className="flex-1">{message.text}</p>
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Name Input */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Place Name *
+          </label>
+          <input
+            type="text"
+            name="name"
+            placeholder="Enter the name of the tour place"
+            value={formData.name}
+            onChange={handleChange}
+            required
+            className="w-full p-4 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
+          />
+        </div>
+
+        {/* Description Input */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Description *
+          </label>
+          <textarea
+            name="description"
+            placeholder="Describe this beautiful place... What makes it special?"
+            value={formData.description}
+            onChange={handleChange}
+            rows={5}
+            required
+            className="w-full p-4 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200 resize-vertical"
+          />
+        </div>
+
+        {/* Location Selectors */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Division *
+            </label>
+            <select
+              name="division"
+              value={formData.division}
+              onChange={handleChange}
+              required
+              className="w-full p-4 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
+            >
+              <option value="">Select Division</option>
+              {availableDivisions.map(div => (
+                <option key={div._id} value={div._id}>{div.name}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              District *
+            </label>
+            <select
+              name="district"
+              value={formData.district}
+              onChange={handleChange}
+              required
+              disabled={!formData.division || filteredDistricts.length === 0}
+              className="w-full p-4 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200 disabled:bg-gray-50 disabled:text-gray-500"
+            >
+              <option value="">Select District</option>
+              {filteredDistricts.map(dist => (
+                <option key={dist._id} value={dist._id}>{dist.name}</option>
+              ))}
+            </select>
+            {!formData.division && (
+              <p className="text-sm text-gray-500 mt-1">Please select a division first</p>
+            )}
+          </div>
+        </div>
+
+        {/* Coordinates */}
+        <div className="bg-blue-50 p-6 rounded-2xl border-2 border-blue-100">
+          <label className="block text-sm font-medium text-blue-800 mb-4">
+            Location Coordinates *
+          </label>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div>
+              <label className="block text-xs text-blue-700 mb-2">Longitude</label>
+              <input
+                type="number"
+                step="0.000001"
+                placeholder="Longitude"
+                value={formData.location.coordinates[0]}
+                onChange={(e) => handleCoordinatesChange(0, e.target.value)}
+                required
+                className="w-full p-3 border-2 border-blue-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-blue-700 mb-2">Latitude</label>
+              <input
+                type="number"
+                step="0.000001"
+                placeholder="Latitude"
+                value={formData.location.coordinates[1]}
+                onChange={(e) => handleCoordinatesChange(1, e.target.value)}
+                required
+                className="w-full p-3 border-2 border-blue-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+              />
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={getMyCoordinates}
+            className="w-full p-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium flex items-center justify-center space-x-2"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a2 2 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            <span>Use My Current Location</span>
+          </button>
+        </div>
+
+        {/* Image Upload */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Upload Images * (Max 5 images)
+          </label>
+          <input
+            type="file"
+            multiple
+            accept="image/*"
+            onChange={handleImageChange}
+            required
+            className="w-full p-4 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+          />
+          <p className="text-sm text-gray-500 mt-2">Supported formats: JPG, PNG, WebP. Maximum 5 images.</p>
+        </div>
+
+        {/* Submit Button */}
+        <button
+          type="submit"
+          disabled={isSubmitting}
+          className={`w-full p-4 rounded-xl font-bold text-white transition-all duration-200 ${
+            isSubmitting 
+              ? "bg-gray-400 cursor-not-allowed" 
+              : "bg-gradient-to-r from-blue-600 to-teal-600 hover:from-blue-700 hover:to-teal-700 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+          }`}
+        >
+          {isSubmitting ? (
+            <div className="flex items-center justify-center space-x-2">
+              <LoadingSpinner size="sm" color="white" />
+              <span>Submitting...</span>
+            </div>
+          ) : (
+            "Add Tour Place"
+          )}
+        </button>
+      </form>
+    </div>
+  );
 };
 
 export default AddTourPlace;

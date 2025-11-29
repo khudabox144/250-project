@@ -1,6 +1,8 @@
 const userService = require('../services/user.service');
 const AppError = require('../utils/AppError');
 const catchAsync = require('../utils/catchAsync');
+const tourService = require('../services/tourPlace.service');
+const packageService = require('../services/package.service');
 
 exports.createUser = catchAsync(async (req, res) => {
   const user = await userService.createUser(req.body);
@@ -59,3 +61,18 @@ exports.deleteUser = catchAsync(async (req, res) => {
 
 // Backwards-compatible alias expected by routes
 exports.getUser = exports.getUserById;
+
+// Get current user's submitted tours
+exports.getMyTours = catchAsync(async (req, res) => {
+  const userId = req.user._id;
+  const tours = await tourService.getToursByUser(userId);
+  res.status(200).json({ status: 'success', results: tours.length, data: tours });
+});
+
+// Get current user's packages (if vendor)
+exports.getMyPackages = catchAsync(async (req, res) => {
+  const userId = req.user._id;
+  // If vendor, include all; otherwise return empty
+  const packages = await packageService.getPackagesByVendorAll(userId);
+  res.status(200).json({ status: 'success', results: packages.length, data: packages });
+});

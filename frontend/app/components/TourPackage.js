@@ -7,6 +7,8 @@ import Link from "next/link";
 const TourPackage = ({ pkg }) => {
   if (!pkg) return null;
 
+  const packageId = pkg._id || pkg.id;
+
   return (
     <div className="group h-full bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-1 border border-gray-100/50 overflow-hidden flex flex-col hover:border-teal-200/70">
       {/* Image Section */}
@@ -53,7 +55,7 @@ const TourPackage = ({ pkg }) => {
             </span>
           </div>
 
-          <Link href={`/package/${pkg.id}`}>
+          <Link href={`/package/${packageId}`}>
             <button className="px-4 py-2 sm:py-3 bg-linear-to-r from-teal-500 to-cyan-500 text-white font-bold rounded-lg hover:from-teal-600 hover:to-cyan-600 transition-all duration-300 shadow-md hover:shadow-lg text-sm sm:text-base whitespace-nowrap">
               View More
             </button>
