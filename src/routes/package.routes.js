@@ -1,31 +1,37 @@
-const express =require ("express");
+// routes/package.routes.js
+const express = require("express");
 const {
   getAllPackages,
   getPackage,
   createPackage,
   updatePackage,
-  deletePackage
-} =require ("../controllers/package.controller.js");
+  deletePackage,
+  getMyPackages,
+  getPackagesByDivision,
+  getPackagesByDistrict
+} = require("../controllers/package.controller.js");
 
-const { protect } =require ("../middlewares/auth.middleware.js");
-const { roleCheck } =require ("../middlewares/role.middleware.js");
-const { uploadImages } =require ("../middlewares/upload.middleware.js");
+const { protect } = require("../middlewares/auth.middleware.js");
+const { roleCheck } = require("../middlewares/role.middleware.js");
+const { uploadImages } = require("../middlewares/upload.middleware.js");
 
 const router = express.Router();
 
-// GET /api/packages
+// Public routes
 router.get("/", getAllPackages);
-
-// GET /api/packages/:id
+router.get("/division/:divisionId", getPackagesByDivision);
+router.get("/district/:districtId", getPackagesByDistrict);
 router.get("/:id", getPackage);
 
-// POST /api/packages (vendor submission)
-router.post("/", protect, roleCheck(["vendor"]), uploadImages.array("images"), createPackage);
+// Protected routes
+router.use(protect);
 
-// PUT /api/packages/:id
-router.put("/:id", protect, roleCheck(["vendor", "admin"]), uploadImages.array("images"), updatePackage);
+// Vendor-specific routes
+router.get("/vendor/my-packages", roleCheck(["vendor"]), getMyPackages);
 
-// DELETE /api/packages/:id
-router.delete("/:id", protect, roleCheck(["admin"]), deletePackage);
+// Package creation and management
+router.post("/", roleCheck(["vendor"]), uploadImages.array("images", 5), createPackage);
+router.put("/:id", roleCheck(["vendor", "admin"]), uploadImages.array("images", 5), updatePackage);
+router.delete("/:id", roleCheck(["admin"]), deletePackage);
 
 module.exports = router;
