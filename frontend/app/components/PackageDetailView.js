@@ -1,8 +1,11 @@
 "use client";
 import React, { useState } from 'react';
 
+import BookingModal from './BookingModal';
+
 const PackageDetailView = ({ item }) => {
   const [imageErrors, setImageErrors] = useState({});
+  const [isBookingOpen, setIsBookingOpen] = useState(false);
 
   if (!item) return <div className="p-6">No package details found.</div>;
 
@@ -27,10 +30,11 @@ const PackageDetailView = ({ item }) => {
 
   const getImageUrl = (img) => {
     if (!img) return null;
+    if (img.startsWith('http://') || img.startsWith('https://')) return img;
     
     try {
       const cleanImg = img.replace(/^\//, '');
-      const baseUrl = process.env.NEXT_PUBLIC_SERVER_BASE_URL?.replace('/api', '') || '';
+      const baseUrl = process.env.NEXT_PUBLIC_SERVER_BASE_URL?.replace('/api', '') || 'http://localhost:5000';
       return `${baseUrl}/${cleanImg}`;
     } catch (error) {
       console.error('Error constructing image URL:', error);
@@ -79,11 +83,25 @@ const PackageDetailView = ({ item }) => {
               </div>
               
               {item.price && (
-                <div className="lg:text-right mt-4 lg:mt-0">
+                <div className="lg:text-right mt-4 lg:mt-0 flex flex-col items-end gap-3">
                   <div className="text-3xl font-bold text-green-600">
                     {formatCurrency(item.price)}
                   </div>
                   <div className="text-sm text-gray-500">Total package price</div>
+                  <button 
+                    onClick={() => setIsBookingOpen(true)}
+                    className="mt-2 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg shadow-md transition-all duration-200 flex items-center gap-2"
+                  >
+                    <span>Book Now</span>
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                  </button>
+                  <BookingModal 
+                    isOpen={isBookingOpen} 
+                    onClose={() => setIsBookingOpen(false)} 
+                    packageItem={item} 
+                  />
                 </div>
               )}
             </div>

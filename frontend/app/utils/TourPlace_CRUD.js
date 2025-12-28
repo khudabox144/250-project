@@ -74,55 +74,35 @@ export const createTourPlace = async (tourData) => {
   try {
     const formData = new FormData();
 
-    console.log('📦 Creating tour place with data:', tourData);
+    // 1. Handle Simple Strings
+    formData.append("name", tourData.name);
+    formData.append("description", tourData.description || "");
+    formData.append("division", tourData.division);
+    formData.append("district", tourData.district);
 
-    // Handle regular fields
-    if (tourData.name) formData.append('name', tourData.name);
-    if (tourData.description) formData.append('description', tourData.description);
-    if (tourData.division) formData.append('division', tourData.division);
-    if (tourData.district) formData.append('district', tourData.district);
-    
-    // Handle location object
+    // 2. Handle Nested Objects (MUST be stringified for FormData)
     if (tourData.location) {
-      formData.append('location', JSON.stringify(tourData.location));
+      formData.append("location", JSON.stringify(tourData.location));
     }
 
-    // Handle images - check if it's FileList or array
+    // 3. Handle Images
     if (tourData.images) {
-      console.log('🖼️ Processing images:', tourData.images);
-      
-      if (tourData.images instanceof FileList) {
-        // Convert FileList to array and append each file
-        for (let i = 0; i < tourData.images.length; i++) {
-          formData.append('images', tourData.images[i]);
-          console.log(`📸 Appended image ${i}:`, tourData.images[i].name);
-        }
-      } else if (Array.isArray(tourData.images)) {
-        // If it's already an array, append each file
-        tourData.images.forEach((file, index) => {
-          formData.append('images', file);
-          console.log(`📸 Appended image ${index}:`, file.name);
-        });
-      }
+      // If it's a FileList or Array of Files
+      const imageFiles = Array.from(tourData.images);
+      imageFiles.forEach((file) => {
+        formData.append("images", file);
+      });
     }
 
-    // Log FormData contents for debugging
-    console.log('📋 FormData entries:');
-    for (let [key, value] of formData.entries()) {
-      console.log(`  ${key}:`, value);
-    }
-
-    const res = await axiosClient.post("/tours", formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
-    
-    console.log('✅ Tour place created successfully:', res.data);
+    const res = await axiosClient.post("/tours", formData);
     return res.data;
   } catch (error) {
-    console.error("❌ Error creating tour place:", error);
-    console.error("Error response:", error.response?.data);
+    // Log detailed error info for debugging (includes server body and axios serialization)
+    console.error("❌ Error creating tour place:", {
+      message: error.message,
+      responseData: error.response?.data,
+      errorJson: typeof error.toJSON === 'function' ? error.toJSON() : undefined
+    });
     throw error;
   }
 };

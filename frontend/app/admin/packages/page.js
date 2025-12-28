@@ -214,7 +214,7 @@ const AdminPackagesPage = () => {
                 <div className="relative h-48 bg-gray-100 overflow-hidden">
                   {pkg.images && pkg.images[0] ? (
                     <img 
-                      src={`${process.env.NEXT_PUBLIC_SERVER_BASE_URL?.replace('/api','')}/${pkg.images[0]}`} 
+                      src={pkg.images[0].startsWith('http') ? pkg.images[0] : `${process.env.NEXT_PUBLIC_SERVER_BASE_URL?.replace('/api','')}/${pkg.images[0]}`} 
                       alt={pkg.title || pkg.name}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                     />

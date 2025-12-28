@@ -107,13 +107,14 @@ export const createTourPackage = async (packageData) => {
       const enhancedError = new Error(serverMessage);
       enhancedError.status = error.response.status;
       enhancedError.response = error.response;
+      enhancedError.__normalized = { responseData: error.response.data, errorJson: typeof error.toJSON === 'function' ? error.toJSON() : undefined };
       throw enhancedError;
       
     } else if (error.request) {
-      console.error('🌐 NO RESPONSE RECEIVED:', error.request);
+      console.error('🌐 NO RESPONSE RECEIVED:', { request: error.request, errorJson: typeof error.toJSON === 'function' ? error.toJSON() : undefined });
       throw new Error('No response from server. Please check your connection.');
     } else {
-      console.error('⚙️ REQUEST SETUP ERROR:', error.message);
+      console.error('⚙️ REQUEST SETUP ERROR:', { message: error.message, errorJson: typeof error.toJSON === 'function' ? error.toJSON() : undefined });
       throw error;
     }
   }

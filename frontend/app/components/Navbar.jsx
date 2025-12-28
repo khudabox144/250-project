@@ -3,6 +3,21 @@ import React from 'react';
 import UserIconDropdown from './UserIconDropdown';
 
 const Navbar = () => {
+    // This would typically come from your auth context or state management
+    // For now, I'll show how to structure it. You'll need to replace this with your actual user data
+    
+    // Example user data structure (you'll get this from your auth system)
+    const user = {
+        isAuthenticated: true, // This would come from your auth context
+        role: 'vendor', // 'admin', 'vendor', 'user', or null
+        name: 'John Doe'
+    };
+
+    // You would typically get this from context like:
+    // const { user } = useAuth();
+    // or from localStorage:
+    // const user = JSON.parse(localStorage.getItem('user'));
+
     return (
         <>
             <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -30,42 +45,102 @@ const Navbar = () => {
 
                         {/* Navigation and Actions */}
                         <div className="flex items-center space-x-6">
-                            {/* Nav Links */}
+                            {/* Nav Links - Conditionally rendered based on user role */}
                             <nav className="hidden md:flex items-center space-x-6 text-sm font-medium text-gray-600">
+                                {/* For Admin Users */}
+                                {user?.role === 'admin' && (
+                                    <>
+                                        <Link
+                                            href="/admin"
+                                            className="hover:text-blue-600 transition-colors duration-200"
+                                        >
+                                            Admin Dashboard
+                                        </Link>
+                                        <Link
+                                            href="/allDestination"
+                                            className="hover:text-blue-600 transition-colors duration-200"
+                                        >
+                                            Destinations
+                                        </Link>
+                                    </>
+                                )}
+
+                                {/* For Vendor Users - ONLY VENDORS SEE THESE LINKS */}
+                                {user?.role === 'vendor' && (
+                                    <>
+                                        <Link
+                                            href="/addPackage"
+                                            className="hover:text-blue-600 transition-colors duration-200"
+                                        >
+                                            Add Package
+                                        </Link>
+                                        <Link
+                                            href="/addPlaces"
+                                            className="hover:text-blue-600 transition-colors duration-200"
+                                        >
+                                            Add Tour Place
+                                        </Link>
+                                    </>
+                                )}
+
+                                {/* For Regular Users & Guests */}
+                                {(!user?.role || user?.role === 'user') && (
+                                    <>
+                                        <Link
+                                            href="/allDestination"
+                                            className="hover:text-blue-600 transition-colors duration-200"
+                                        >
+                                            Destinations
+                                        </Link>
+                                        <Link
+                                            href="#world-tour"
+                                            className="hover:text-blue-600 transition-colors duration-200"
+                                        >
+                                            Adventure Styles
+                                        </Link>
+                                    </>
+                                )}
+
+                                {/* Common Links for All Users */}
                                 <Link
-                                    href="/allDestination"
-                                    className="hover:text-blue-600 transition-colors duration-200"
-                                >
-                                    Destinations
-                                </Link>
-                                <Link
-                                    href="#world-tour"
-                                    className="hover:text-blue-600 transition-colors duration-200"
-                                >
-                                    Adventure Styles
-                                </Link>
-                                <Link
-                                    href="#recommendation"
+                                    href="/packages"
                                     className="px-4 py-2 bg-blue-500 text-white rounded-full hover:bg-blue-600 transition-colors duration-200 transform hover:scale-105"
                                 >
                                     Tour Packages
                                 </Link>
+                                
+                                {/* Additional common link */}
                                 <Link
                                     href="/allDestination"
                                     className="hover:text-blue-600 transition-colors duration-200"
                                 >
-                                    allDestination
+                                    All Destinations
                                 </Link>
                             </nav>
 
                             {/* Right-side Actions */}
                             <div className="flex items-center space-x-4">
-                                <Link
-                                    href="/admin"
-                                    className="hidden lg:block text-sm font-semibold text-blue-600 hover:underline"
-                                >
-                                    admin
-                                </Link>
+                                {/* Admin Link - Only show for admin users */}
+                                {user?.role === 'admin' && (
+                                    <Link
+                                        href="/admin"
+                                        className="hidden lg:block text-sm font-semibold text-blue-600 hover:underline"
+                                    >
+                                        Admin Panel
+                                    </Link>
+                                )}
+
+                                {/* Vendor Dashboard Link - Only show for vendor users */}
+                                {/* {user?.role === 'vendor' && (
+                                    <Link
+                                        href="/vendor/dashboard"
+                                        className="hidden lg:block text-sm font-semibold text-blue-600 hover:underline"
+                                    >
+                                        Vendor Dashboard
+                                    </Link>
+                                )} */}
+
+                                {/* Language Selector */}
                                 <button className="flex items-center space-x-1 hover:text-blue-600 transition-colors duration-200">
                                     <svg
                                         xmlns="http://www.w3.org/2000/svg"
@@ -81,6 +156,8 @@ const Navbar = () => {
                                     </svg>
                                     <span>EN</span>
                                 </button>
+
+                                {/* Favorites Button */}
                                 <button className="text-gray-600 hover:text-blue-600 transition-colors duration-200">
                                     <svg
                                         xmlns="http://www.w3.org/2000/svg"
@@ -98,7 +175,7 @@ const Navbar = () => {
                                     </svg>
                                 </button>
                                 
-                                {/* Replaced the auth link with UserIconDropdown */}
+                                {/* User Icon Dropdown - This should handle auth state */}
                                 <UserIconDropdown />
                             </div>
                         </div>

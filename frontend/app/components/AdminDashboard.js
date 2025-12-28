@@ -338,9 +338,9 @@ const AdminDashboard = () => {
                   <div className="flex flex-col sm:flex-row gap-4">
                     <div className="w-full sm:w-24 h-24 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
                       {tour.images && tour.images[0] ? (
-                        <img 
-                          src={`${process.env.NEXT_PUBLIC_SERVER_BASE_URL?.replace('/api','')}/${tour.images[0]}`} 
-                          alt={tour.name}
+                          <img 
+                            src={tour.images[0].startsWith('http') ? tour.images[0] : `${process.env.NEXT_PUBLIC_SERVER_BASE_URL?.replace('/api','')}/${tour.images[0]}`}
+                            alt={tour.name}
                           className="w-full h-full object-cover"
                         />
                       ) : (

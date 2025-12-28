@@ -1,7 +1,7 @@
 const TourPlace = require("../models/tourPlace.model.js");
 const catchAsync = require("../utils/catchAsync");
 const AppError = require("../utils/AppError.js");
-const fileService = require("../services/file.service");
+const cloudinaryService = require("../services/cloudinary.service");
 
 // Helper to parse and normalize location input into GeoJSON Point { type: 'Point', coordinates: [lng, lat] }
 const parseLocation = (location, body) => {
@@ -82,49 +82,38 @@ const getTourPlace = catchAsync(async (req, res, next) => {
 });
 
 // Create new tour place
-const createTourPlace = catchAsync(async (req, res, next) => {
-  // Debug: log incoming request shape to help diagnose client/server mismatch
-  console.log("[createTourPlace] headers:", req.headers && { authorization: req.headers.authorization, 'content-type': req.headers['content-type'] });
-  console.log("[createTourPlace] body:", req.body);
-  console.log("[createTourPlace] files:", req.files && req.files.map(f => ({ originalname: f.originalname, size: f.size, mimetype: f.mimetype })));
-  console.log("[createTourPlace] user:", req.user && { id: req.user._id, role: req.user.role });
+const createTourPlace = async (req, res) => {
+  try {
+    // req.body contains the text fields, req.files contains the images
+    const tourData = { ...req.body };
 
-  const { name, description, division, district, location } = req.body;
-
-  if (!name) return next(new AppError("Missing required field: name", 400));
-  if (!division) return next(new AppError("Missing required field: division", 400));
-  if (!district) return next(new AppError("Missing required field: district", 400));
-
-  const parsedLocation = parseLocation(location, req.body);
-  if (!parsedLocation || !Array.isArray(parsedLocation.coordinates) || parsedLocation.coordinates.length !== 2) {
-    console.warn("[createTourPlace] invalid parsedLocation:", parsedLocation);
-    return next(new AppError("Missing or invalid location (coordinates required)", 400));
-  }
-
-  // Persist uploaded images (memoryStorage) to uploads/ and store paths
-  const images = [];
-  if (req.files && req.files.length) {
-    for (const f of req.files) {
-      const savedPath = fileService.saveLocalFile(f); // returns string like 'uploads/filename.ext'
-      // Normalize to forward slashes for URLs
-      images.push(savedPath.replace(/\\\\/g, "/"));
+    // SYNC: Parse stringified fields coming from FormData
+    if (typeof tourData.location === 'string') {
+      tourData.location = JSON.parse(tourData.location);
     }
+
+    // Map uploaded file paths to the images array
+    if (req.files && req.files.length > 0) {
+      tourData.images = req.files.map(file => file.path); 
+    }
+
+    // Add reference to the user who created it
+    tourData.createdBy = req.user._id;
+
+    const newTourPlace = await TourPlace.create(tourData);
+
+    res.status(201).json({
+      status: "success",
+      data: newTourPlace
+    });
+  } catch (err) {
+    console.error("Backend Error:", err);
+    res.status(400).json({
+      status: "fail",
+      message: err.message
+    });
   }
-
-  const tourData = {
-    name,
-    description,
-    division,
-    district,
-    location: parsedLocation,
-    images,
-    createdBy: req.user ? req.user._id : undefined,
-    isApproved: req.user && req.user.role === "admin",
-  };
-
-  const newTour = await TourPlace.create(tourData);
-  res.status(201).json({ status: "success", data: newTour });
-});
+};
 
 // Update tour place
 const updateTourPlace = catchAsync(async (req, res, next) => {
@@ -140,11 +129,8 @@ const updateTourPlace = catchAsync(async (req, res, next) => {
   }
 
   if (req.files && req.files.length) {
-    const uploaded = [];
-    for (const f of req.files) {
-      const savedPath = fileService.saveLocalFile(f);
-      uploaded.push(savedPath.replace(/\\\\/g, "/"));
-    }
+    const uploadPromises = req.files.map(file => cloudinaryService.uploadImage(file.buffer));
+    const uploaded = await Promise.all(uploadPromises);
     updateData.images = Array.isArray(existing.images) ? existing.images.concat(uploaded) : uploaded;
   }
 

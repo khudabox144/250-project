@@ -1,5 +1,11 @@
 "use client";
-import React from 'react';
+import React, { useMemo } from 'react';
+import dynamic from 'next/dynamic';
+
+const MapComponent = dynamic(() => import('./MapComponent'), {
+  ssr: false,
+  loading: () => <div className="h-64 w-full flex items-center justify-center bg-gray-100 rounded-lg">Loading Map...</div>
+});
 
 const DetailView = ({ item, type = 'tour' }) => {
   if (!item) return <div className="p-6">No details found.</div>;
@@ -53,7 +59,7 @@ const DetailView = ({ item, type = 'tour' }) => {
           {/* Hero Image Section */}
           <div className="relative h-64 sm:h-80 md:h-96 bg-gray-200">
             <img
-              src={images[0].startsWith('http') ? images[0] : `${process.env.NEXT_PUBLIC_SERVER_BASE_URL?.replace('/api','')}/${images[0]}`}
+              src={images[0].startsWith('http') ? images[0] : `${process.env.NEXT_PUBLIC_SERVER_BASE_URL?.replace('/api','') || 'http://localhost:5000'}/${images[0]}`}
               alt={item.name}
               className="w-full h-full object-cover"
               onError={(e) => {
@@ -191,18 +197,24 @@ const DetailView = ({ item, type = 'tour' }) => {
 
             {/* Location Map Preview (if coordinates exist) */}
             {item.location?.coordinates && (
-              <div className="bg-gradient-to-br from-orange-50 to-red-50 rounded-xl p-6 border border-orange-100">
+              <div className="bg-gradient-to-br from-orange-50 to-red-50 rounded-xl p-6 border border-orange-100 col-span-1 md:col-span-2">
                 <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center">
                   <svg className="w-5 h-5 mr-2 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
                   </svg>
                   Location on Map
                 </h3>
-                <div className="bg-white rounded-lg p-4 text-center">
-                  <p className="text-gray-600 mb-2">Coordinates available</p>
-                  <p className="text-sm text-gray-500 font-mono">
-                    {item.location.coordinates[1]}, {item.location.coordinates[0]}
-                  </p>
+                <div className="bg-white rounded-lg overflow-hidden shadow-sm h-96 w-full relative z-0">
+                   <MapComponent 
+                      center={[item.location.coordinates[1], item.location.coordinates[0]]} 
+                      zoom={13}
+                      markers={[
+                        {
+                          position: [item.location.coordinates[1], item.location.coordinates[0]],
+                          content: <div className="font-bold text-sm text-black">{item.name}</div>
+                        }
+                      ]}
+                   />
                 </div>
               </div>
             )}

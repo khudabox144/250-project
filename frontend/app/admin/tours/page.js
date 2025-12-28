@@ -218,7 +218,7 @@ const AdminToursPage = () => {
                   <div className="lg:w-64 xl:w-80 h-48 lg:h-auto bg-gray-100 relative">
                     {tour.images && tour.images[0] ? (
                       <img 
-                        src={`${process.env.NEXT_PUBLIC_SERVER_BASE_URL?.replace('/api','')}/${tour.images[0]}`} 
+                        src={tour.images[0].startsWith('http') ? tour.images[0] : `${process.env.NEXT_PUBLIC_SERVER_BASE_URL?.replace('/api','')}/${tour.images[0]}`} 
                         alt={tour.name}
                         className="w-full h-full object-cover"
                       />

@@ -1,51 +1,13 @@
-// import axios from 'axios';
-
-// const axiosClient = axios.create({
-//   baseURL: process.env.NEXT_PUBLIC_SERVER_BASE_URL,
-// });
-
-// // Add token automatically to every request
-// axiosClient.interceptors.request.use(config => {
-//   const token = localStorage.getItem('accessToken');
-//   if (token) {
-//     config.headers.Authorization = `Bearer ${token}`;
-//   }
-//   return config;
-// });
-
-// export default axiosClient;
-
-// utils/axiosClient.js
-// import axios from 'axios';
-
-// const axiosClient = axios.create({
-//   baseURL: process.env.NEXT_PUBLIC_SERVER_BASE_URL,
-// });
-
-// // Add token automatically to every request (client-side only)
-// axiosClient.interceptors.request.use(config => {
-//   // This only runs in the browser
-//   if (typeof window !== 'undefined') {
-//     const token = localStorage.getItem('accessToken');
-//     if (token) {
-//       config.headers.Authorization = `Bearer ${token}`;
-//     }
-//   }
-//   return config;
-// });
-
-// export default axiosClient;
-
 import axios from 'axios';
 
 const axiosClient = axios.create({
   baseURL: process.env.NEXT_PUBLIC_SERVER_BASE_URL,
-  timeout: 30000, // 30 seconds timeout for file uploads
+  timeout: 30000, // Increased timeout
 });
 
-// Add token automatically to every request (client-side only)
+// Request interceptor
 axiosClient.interceptors.request.use(config => {
-  // This only runs in the browser
+  // Client-side only operations
   if (typeof window !== 'undefined') {
     const token = localStorage.getItem('accessToken');
     if (token) {
@@ -53,54 +15,71 @@ axiosClient.interceptors.request.use(config => {
     }
   }
   
-  // Important: Don't set Content-Type for FormData - let browser set it automatically
-  // This is crucial for file uploads to work properly
+  // Handle Content-Type for FormData
   if (config.data instanceof FormData) {
-    // Browser will automatically set Content-Type with boundary for FormData
-    delete config.headers['Content-Type'];
-  } else {
+    // Browser will set multipart/form-data with boundary
+    if (config.headers) {
+      delete config.headers['Content-Type'];
+    }
+  } else if (config.data && !config.headers['Content-Type']) {
     config.headers['Content-Type'] = 'application/json';
   }
   
   console.log('🚀 Axios Request:', {
+    method: config.method?.toUpperCase(),
     url: config.url,
-    method: config.method,
-    headers: config.headers,
-    dataType: config.data instanceof FormData ? 'FormData' : typeof config.data
+    hasData: !!config.data,
+    isFormData: config.data instanceof FormData
   });
   
   return config;
 });
 
-// Response interceptor for better error handling
+// Response interceptor
 axiosClient.interceptors.response.use(
   (response) => {
+    // Safe logging - avoid logging large responses
     console.log('✅ Axios Response Success:', {
       status: response.status,
       url: response.config.url,
-      data: response.data
+      method: response.config.method?.toUpperCase()
     });
     return response;
   },
   (error) => {
-    console.error('❌ Axios Response Error:', {
+    // Check if it's a timeout error
+    if (error.code === 'ECONNABORTED') {
+      console.error('⏰ Request timeout:', error.config?.url);
+    }
+    
+    // Log detailed error info (response body, serialized error)
+    const errInfo = {
       status: error.response?.status,
       url: error.config?.url,
-      message: error.response?.data?.message,
-      data: error.response?.data
-    });
+      message: error.message,
+      responseData: error.response?.data,
+      errorJson: typeof error.toJSON === 'function' ? error.toJSON() : undefined
+    };
+
+    if (process.env.NODE_ENV === 'production') {
+      // Concise single-line log for production
+      console.error(`❌ Axios Error: ${errInfo.status || ''} ${errInfo.message || ''} ${errInfo.url || ''}`);
+    } else {
+      // Detailed object in development for debugging
+      console.error('❌ Axios Error:', errInfo);
+    }
     
-    // Handle specific error cases
     if (error.response?.status === 401) {
-      // Token expired or invalid
       if (typeof window !== 'undefined') {
         localStorage.removeItem('accessToken');
         localStorage.removeItem('user');
-        // You might want to redirect to login page here
-        window.location.href = '/auth/login';
+        // Optional: redirect to login
+        // window.location.href = '/auth/login';
       }
     }
     
+    // Attach normalized info to the error for callers
+    try { error.__normalized = { status: error.response?.status, url: error.config?.url, data: error.response?.data }; } catch(e) {}
     return Promise.reject(error);
   }
 );

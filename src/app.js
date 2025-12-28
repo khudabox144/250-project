@@ -32,6 +32,8 @@ app.use("/api/reviews", reviewRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/divisions", divisionRoutes);
 app.use("/api/districts", districtRoutes);
+app.use("/api/map", require("./routes/map.routes.js"));
+app.use("/api/bookings", require("./routes/booking.routes.js"));
 
 app.use((req, res, next) => {
   next(new AppError(`Cannot find ${req.originalUrl} on this server!`, 404));

@@ -2,6 +2,7 @@
 const Package = require("../models/package.model");
 const catchAsync = require("../utils/catchAsync");
 const AppError = require("../utils/AppError");
+const cloudinaryService = require("../services/cloudinary.service");
 
 // Get all approved packages
 const getAllPackages = catchAsync(async (req, res, next) => {
@@ -32,135 +33,78 @@ const getPackage = catchAsync(async (req, res, next) => {
 });
 
 // Create package (vendor submission)
-const createPackage = catchAsync(async (req, res, next) => {
-  console.log('📦 CREATE PACKAGE REQUEST ===');
-  console.log('Body:', req.body);
-  console.log('Files:', req.files);
-  console.log('User:', req.user);
-  console.log('========================');
 
+const createPackage = async (req, res) => {
   try {
-    // Handle images
-    const images = req.files && req.files.length > 0 
-      ? req.files.map(file => file.path) 
-      : [];
+    const data = { ...req.body };
 
-    console.log('🖼️ Processed images:', images);
+    // SYNC: Parse all stringified arrays and objects
+    const jsonFields = ["location", "itinerary", "highlights", "inclusions"];
+    
+    jsonFields.forEach(field => {
+      if (typeof data[field] === 'string') {
+        data[field] = JSON.parse(data[field]);
+      }
+    });
 
-    // Parse JSON fields from frontend
-    let itinerary = [];
-    let highlights = [];
-    let inclusions = [];
-    let location = { 
-      type: "Point", 
-      coordinates: [90.3994, 23.7778], 
-      address: "" 
+    if (req.files) {
+      data.images = req.files.map(file => file.path);
+    }
+
+    data.vendor = req.user._id;
+
+    // Normalize division/district if they arrive as objects or JSON strings
+    const normalizeId = (val) => {
+      if (!val) return val;
+      if (typeof val === 'string') {
+        try { const p = JSON.parse(val); return p._id || p.id || val; } catch (e) { return val; }
+      }
+      if (typeof val === 'object') return val._id || val.id || String(val);
+      return val;
     };
 
-    // Parse JSON strings if needed
-    try {
-      if (req.body.itinerary) {
-        itinerary = typeof req.body.itinerary === 'string' 
-          ? JSON.parse(req.body.itinerary) 
-          : req.body.itinerary;
-      }
-      
-      if (req.body.highlights) {
-        highlights = typeof req.body.highlights === 'string' 
-          ? JSON.parse(req.body.highlights) 
-          : req.body.highlights;
-      }
-      
-      if (req.body.inclusions) {
-        inclusions = typeof req.body.inclusions === 'string' 
-          ? JSON.parse(req.body.inclusions) 
-          : req.body.inclusions;
-      }
-      
-      if (req.body.location) {
-        location = typeof req.body.location === 'string' 
-          ? JSON.parse(req.body.location) 
-          : req.body.location;
-      }
-    } catch (parseError) {
-      console.error('❌ JSON parsing error:', parseError);
-      return next(new AppError('Invalid data format for itinerary, highlights, inclusions, or location', 400));
-    }
+    data.division = normalizeId(data.division);
+    data.district = normalizeId(data.district);
 
     // Validate required fields
-    const requiredFields = [
-      'name', 'description', 'price', 'days', 'nights', 
-      'division', 'district'
-    ];
-    
-    const missingFields = requiredFields.filter(field => !req.body[field]);
-    
-    if (missingFields.length > 0) {
-      return next(new AppError(`Missing required fields: ${missingFields.join(', ')}`, 400));
+    const requiredFields = ['name', 'description', 'price', 'days', 'nights', 'division', 'district'];
+    const missing = requiredFields.filter(f => data[f] === undefined || data[f] === null || (typeof data[f] === 'string' && data[f].trim() === ''));
+    if (missing.length) {
+      return res.status(400).json({ status: 'fail', message: `Missing required fields: ${missing.join(', ')}` });
     }
 
-    // Validate location data
-    if (!location.address || !location.coordinates || location.coordinates.length !== 2) {
-      return next(new AppError('Valid location with address and coordinates is required', 400));
+    // Validate location object
+    if (!data.location || !Array.isArray(data.location.coordinates) || data.location.coordinates.length !== 2) {
+      return res.status(400).json({ status: 'fail', message: 'Valid location with coordinates is required' });
     }
 
-    // Create package data
-    const packageData = {
-      name: req.body.name,
-      description: req.body.description,
-      price: parseFloat(req.body.price),
-      days: parseInt(req.body.days),
-      nights: parseInt(req.body.nights),
-      images: images,
-      division: req.body.division,
-      district: req.body.district,
-      location: location,
-      itinerary: Array.isArray(itinerary) ? itinerary.filter(item => item && item.trim() !== '') : [],
-      highlights: Array.isArray(highlights) ? highlights.filter(item => item && item.trim() !== '') : [],
-      inclusions: Array.isArray(inclusions) ? inclusions.filter(item => item && item.trim() !== '') : [],
-      vendor: req.user.id,
-      isApproved: req.user.role === "admin",
-    };
-
-    console.log('📋 FINAL PACKAGE DATA:', packageData);
-
-    // Create the package
-    const newPackage = await Package.create(packageData);
-    
-    // Populate the created package
-    const populatedPackage = await Package.findById(newPackage._id)
-      .populate("vendor division district");
-    
-    console.log('✅ PACKAGE CREATED SUCCESSFULLY:', newPackage._id);
-    
-    res.status(201).json({ 
-      status: "success", 
-      message: "Tour package created successfully",
-      data: populatedPackage 
+    // Ensure coordinates are numbers [lng, lat]
+    data.location.coordinates = data.location.coordinates.map(c => {
+      const n = Number(c); return Number.isFinite(n) ? n : NaN;
     });
-    
-  } catch (error) {
-    console.error('❌ CREATE PACKAGE ERROR:', error);
-    
-    // Handle MongoDB validation errors
-    if (error.name === 'ValidationError') {
-      const errors = Object.values(error.errors).map(el => el.message);
-      return next(new AppError(`Invalid input data: ${errors.join('. ')}`, 400));
+    if (!data.location.coordinates.every(Number.isFinite)) {
+      return res.status(400).json({ status: 'fail', message: 'Location coordinates must be valid numbers' });
     }
-    
-    // Handle duplicate key errors
-    if (error.code === 11000) {
-      return next(new AppError('Package with this name already exists', 400));
+
+    // Address required by package.model
+    data.location.address = (data.location.address || req.body.address || '').toString().trim();
+    if (!data.location.address) {
+      return res.status(400).json({ status: 'fail', message: 'Location address is required' });
     }
-    
-    // Handle cast errors (invalid ObjectId)
-    if (error.name === 'CastError') {
-      return next(new AppError('Invalid ID format', 400));
-    }
-    
-    next(error);
+
+    const newPackage = await Package.create(data);
+
+    res.status(201).json({
+      status: "success",
+      data: newPackage
+    });
+  } catch (err) {
+    res.status(400).json({
+      status: "fail",
+      message: err.message
+    });
   }
-});
+};
 
 // Update package
 const updatePackage = catchAsync(async (req, res, next) => {
@@ -175,7 +119,8 @@ const updatePackage = catchAsync(async (req, res, next) => {
     
     // Handle images if provided
     if (req.files && req.files.length > 0) {
-      updateData.images = req.files.map(file => file.path);
+       const uploadPromises = req.files.map(file => cloudinaryService.uploadImage(file.buffer));
+       updateData.images = await Promise.all(uploadPromises);
     }
 
     // Parse JSON fields if provided
@@ -207,6 +152,36 @@ const updatePackage = catchAsync(async (req, res, next) => {
     if (req.body.price) updateData.price = parseFloat(req.body.price);
     if (req.body.days) updateData.days = parseInt(req.body.days);
     if (req.body.nights) updateData.nights = parseInt(req.body.nights);
+
+    // Normalize division/district if provided (accept JSON/object/string)
+    const normalizeId = (val) => {
+      if (!val) return val;
+      if (typeof val === 'string') {
+        try { return (JSON.parse(val))._id || (JSON.parse(val)).id || val; } catch(e) { return val; }
+      }
+      if (typeof val === 'object') return val._id || val.id || String(val);
+      return val;
+    };
+
+    if (updateData.division) updateData.division = normalizeId(updateData.division);
+    if (updateData.district) updateData.district = normalizeId(updateData.district);
+
+    // Ensure location coordinates are numbers when updating
+    if (updateData.location && Array.isArray(updateData.location.coordinates)) {
+      updateData.location.coordinates = updateData.location.coordinates.map(c => {
+        const n = Number(c); return Number.isFinite(n) ? n : NaN;
+      });
+      if (!updateData.location.coordinates.every(Number.isFinite)) {
+        return next(new AppError('Location coordinates must be valid numbers', 400));
+      }
+      // If address is provided in update, ensure it's non-empty; if not provided, leave existing address
+      if (updateData.location.address !== undefined) {
+        updateData.location.address = String(updateData.location.address || '').trim();
+        if (!updateData.location.address) {
+          return next(new AppError('Location address is required when providing location', 400));
+        }
+      }
+    }
 
     const pkg = await Package.findByIdAndUpdate(
       req.params.id, 
