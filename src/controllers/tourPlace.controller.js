@@ -92,9 +92,15 @@ const createTourPlace = async (req, res) => {
       tourData.location = JSON.parse(tourData.location);
     }
 
-    // Map uploaded file paths to the images array
+    // If files were uploaded (using memoryStorage), upload to Cloudinary
     if (req.files && req.files.length > 0) {
-      tourData.images = req.files.map(file => file.path); 
+      const uploadPromises = req.files.map((file) =>
+        cloudinaryService.uploadImage(file.buffer)
+      );
+      const uploaded = await Promise.all(uploadPromises);
+      // store URLs in `images` and public IDs in `imagePublicIds`
+      tourData.images = uploaded.map((u) => u.url);
+      tourData.imagePublicIds = uploaded.map((u) => u.public_id);
     }
 
     // Add reference to the user who created it
@@ -129,9 +135,14 @@ const updateTourPlace = catchAsync(async (req, res, next) => {
   }
 
   if (req.files && req.files.length) {
-    const uploadPromises = req.files.map(file => cloudinaryService.uploadImage(file.buffer));
+    const uploadPromises = req.files.map((file) => cloudinaryService.uploadImage(file.buffer));
     const uploaded = await Promise.all(uploadPromises);
-    updateData.images = Array.isArray(existing.images) ? existing.images.concat(uploaded) : uploaded;
+    const urls = uploaded.map((u) => u.url);
+    const ids = uploaded.map((u) => u.public_id);
+    updateData.images = Array.isArray(existing.images) ? existing.images.concat(urls) : urls;
+    updateData.imagePublicIds = Array.isArray(existing.imagePublicIds)
+      ? existing.imagePublicIds.concat(ids)
+      : ids;
   }
 
   delete updateData.createdBy; // prevent updating creator
@@ -146,8 +157,24 @@ const updateTourPlace = catchAsync(async (req, res, next) => {
 
 // Delete tour place
 const deleteTourPlace = catchAsync(async (req, res, next) => {
-  const tour = await TourPlace.findByIdAndDelete(req.params.id);
+  const tour = await TourPlace.findById(req.params.id);
   if (!tour) return next(new AppError("TourPlace not found", 404));
+
+  // Attempt to delete images from Cloudinary if we have public IDs
+  if (Array.isArray(tour.imagePublicIds) && tour.imagePublicIds.length) {
+    await Promise.all(
+      tour.imagePublicIds.map(async (pid) => {
+        try {
+          await cloudinaryService.deleteImage(pid);
+        } catch (e) {
+          console.error('Failed to delete Cloudinary image', pid, e);
+        }
+      })
+    );
+  }
+
+  await TourPlace.findByIdAndDelete(req.params.id);
+
   res.status(204).json({ status: "success", data: null });
 });
 

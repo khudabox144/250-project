@@ -9,13 +9,22 @@ const uploadImage = (buffer) => {
       },
       (error, result) => {
         if (result) {
-          resolve(result.secure_url);
+          // return both url and public_id for later deletions
+          resolve({ url: result.secure_url, public_id: result.public_id });
         } else {
           reject(error);
         }
       }
     );
-    streamifier.createReadStream(buffer).pipe(uploadStream);
+
+    // support both Buffer and stream input
+    if (Buffer.isBuffer(buffer)) {
+      streamifier.createReadStream(buffer).pipe(uploadStream);
+    } else if (buffer && typeof buffer.pipe === "function") {
+      buffer.pipe(uploadStream);
+    } else {
+      reject(new Error("Invalid buffer/stream passed to uploadImage"));
+    }
   });
 };
 

@@ -29,6 +29,7 @@ const packageSchema = new mongoose.Schema(
     images: [{ 
       type: String 
     }],
+    imagePublicIds: [{ type: String }],
 
     division: {
       type: mongoose.Schema.Types.ObjectId,

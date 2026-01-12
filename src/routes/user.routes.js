@@ -4,11 +4,6 @@ const { protect } =require ("../middlewares/auth.middleware.js");
 
 const router = express.Router();
 
-// // POST /api/users  → Create user
-// router.post("/", createUser);
-
-// // GET /api/users  → Get all users (optional)
-// router.get("/", protect, getAllUsers);
 
 // Current user endpoints (must be before /:id)
 router.get('/me/tours', protect, (req, res, next) => require('../controllers/user.controller').getMyTours(req, res, next));

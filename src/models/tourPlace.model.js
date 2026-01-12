@@ -4,6 +4,7 @@ const tourPlacesSchema = new mongoose.Schema({
   name: { type: String, required: true },
   description: String,
   images: [String],
+  imagePublicIds: [String],
   division: { type: mongoose.Schema.Types.ObjectId, ref: "Division", required: true },
   district: { type: mongoose.Schema.Types.ObjectId, ref: "District", required: true },
   location: {

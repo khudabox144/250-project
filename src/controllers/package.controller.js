@@ -47,8 +47,11 @@ const createPackage = async (req, res) => {
       }
     });
 
-    if (req.files) {
-      data.images = req.files.map(file => file.path);
+    if (req.files && req.files.length > 0) {
+      const uploadPromises = req.files.map((file) => cloudinaryService.uploadImage(file.buffer));
+      const uploaded = await Promise.all(uploadPromises);
+      data.images = uploaded.map(u => u.url);
+      data.imagePublicIds = uploaded.map(u => u.public_id);
     }
 
     data.vendor = req.user._id;
@@ -118,10 +121,12 @@ const updatePackage = catchAsync(async (req, res, next) => {
     const updateData = { ...req.body };
     
     // Handle images if provided
-    if (req.files && req.files.length > 0) {
+     if (req.files && req.files.length > 0) {
        const uploadPromises = req.files.map(file => cloudinaryService.uploadImage(file.buffer));
-       updateData.images = await Promise.all(uploadPromises);
-    }
+       const uploaded = await Promise.all(uploadPromises);
+       updateData.images = uploaded.map(u => u.url);
+       updateData.imagePublicIds = uploaded.map(u => u.public_id);
+     }
 
     // Parse JSON fields if provided
     if (req.body.itinerary) {
@@ -224,14 +229,29 @@ const deletePackage = catchAsync(async (req, res, next) => {
   console.log('Package ID:', req.params.id);
   console.log('============================');
 
-  const pkg = await Package.findByIdAndDelete(req.params.id);
-  
+  const pkg = await Package.findById(req.params.id);
+
   if (!pkg) {
     return next(new AppError("Package not found", 404));
   }
-  
+
+  // Delete images from Cloudinary if public IDs exist
+  if (Array.isArray(pkg.imagePublicIds) && pkg.imagePublicIds.length) {
+    await Promise.all(
+      pkg.imagePublicIds.map(async (pid) => {
+        try {
+          await cloudinaryService.deleteImage(pid);
+        } catch (e) {
+          console.error('Failed to delete Cloudinary image', pid, e);
+        }
+      })
+    );
+  }
+
+  await Package.findByIdAndDelete(req.params.id);
+
   console.log('✅ PACKAGE DELETED:', req.params.id);
-  
+
   res.status(200).json({ 
     status: "success", 
     message: "Package deleted successfully",
