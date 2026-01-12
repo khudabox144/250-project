@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { createBooking } from '../utils/Booking_CRUD';
 
 const BookingModal = ({ isOpen, onClose, packageItem }) => {
@@ -27,6 +28,13 @@ const BookingModal = ({ isOpen, onClose, packageItem }) => {
     }
   }, [isOpen]);
 
+  // don't attempt to render on server
+  const isBrowser = typeof window !== 'undefined' && typeof document !== 'undefined';
+  useEffect(() => {
+    console.log('BookingModal isOpen ->', isOpen);
+  }, [isOpen]);
+
+  if (!isBrowser) return null;
   if (!isOpen) return null;
 
   const handleChange = (e) => {
@@ -59,13 +67,24 @@ const BookingModal = ({ isOpen, onClose, packageItem }) => {
     };
 
     try {
+      // Debug: log payload and token to help trace failing requests
+      console.log('📤 Booking submit', {
+        apiBase: process.env.NEXT_PUBLIC_SERVER_BASE_URL || 'http://localhost:5000/api',
+        payload,
+        token: token ? `${token.substring(0, 8)}...` : null,
+      });
+
       await createBooking(payload, token);
       setSuccess(true);
       setTimeout(() => {
-          onClose();
+        onClose();
       }, 2000);
     } catch (err) {
-      setError(err.message);
+      // Log full error for debugging
+      console.error('❌ Booking error (modal):', err);
+      // Show enriched message if available
+      const msg = (err && (err.message || err.data?.message || JSON.stringify(err))) || 'Booking failed';
+      setError(msg);
     } finally {
       setLoading(false);
     }
@@ -74,15 +93,22 @@ const BookingModal = ({ isOpen, onClose, packageItem }) => {
   const participantsNum = Number(formData.participants) || 0;
   const totalCost = (Number(packageItem?.price) || 0) * participantsNum;
 
-  return (
+  const modalContent = (
     <div className="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
       <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
         
-        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true" onClick={onClose}></div>
+        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity z-40" aria-hidden="true" onClick={onClose}></div>
 
         <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
 
-        <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+        <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full z-50">
+          <button
+            onClick={onClose}
+            aria-label="Close booking modal"
+            className="absolute right-4 top-4 text-gray-500 hover:text-gray-700 z-50"
+          >
+            ✕
+          </button>
           <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
             <div className="sm:flex sm:items-start">
               <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
@@ -182,6 +208,8 @@ const BookingModal = ({ isOpen, onClose, packageItem }) => {
       </div>
     </div>
   );
+
+  return createPortal(modalContent, document.body);
 };
 
 export default BookingModal;

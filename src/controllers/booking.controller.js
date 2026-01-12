@@ -5,7 +5,18 @@ const AppError = require("../utils/AppError");
 
 // Create a new booking
 const createBooking = catchAsync(async (req, res, next) => {
-  let { packageId, bookingDate, participants, contactPhone, specialRequests } = req.body;
+  let { packageId, package: packageField, bookingDate, participants, contactPhone, specialRequests } = req.body;
+
+  // Debug logging to help identify client payload issues
+  console.log('🔔 createBooking payload:', { body: req.body, user: req.user && req.user.id });
+
+  // Accept either `packageId` or `package` as client may send either
+  if (!packageId && packageField) {
+    // If sent as an object, try to extract its id
+    if (typeof packageField === 'string') packageId = packageField;
+    else if (packageField._id) packageId = packageField._id;
+    else if (packageField.id) packageId = packageField.id;
+  }
 
   if (!packageId || !bookingDate || participants === undefined) {
     return next(new AppError("Please provide all required fields: packageId, bookingDate, participants", 400));
@@ -25,6 +36,16 @@ const createBooking = catchAsync(async (req, res, next) => {
   const pkg = await Package.findById(packageId);
   if (!pkg) {
     return next(new AppError("Package not found", 404));
+  }
+
+  // Prevent duplicate booking requests by same user for same package
+  const existingBooking = await Booking.findOne({
+    user: req.user._id || req.user.id,
+    package: packageId,
+    status: { $in: ["pending", "confirmed"] },
+  });
+  if (existingBooking) {
+    return next(new AppError("You already have an active booking request for this package", 400));
   }
 
   // Calculate total price safely

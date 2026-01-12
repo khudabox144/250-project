@@ -1,186 +1,95 @@
+"use client";
 import Link from 'next/link';
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import UserIconDropdown from './UserIconDropdown';
 
 const Navbar = () => {
-    // This would typically come from your auth context or state management
-    // For now, I'll show how to structure it. You'll need to replace this with your actual user data
-    
-    // Example user data structure (you'll get this from your auth system)
-    const user = {
-        isAuthenticated: true, // This would come from your auth context
-        role: 'vendor', // 'admin', 'vendor', 'user', or null
-        name: 'John Doe'
-    };
+    const [user, setUser] = useState(null);
+    const [mobileOpen, setMobileOpen] = useState(false);
 
-    // You would typically get this from context like:
-    // const { user } = useAuth();
-    // or from localStorage:
-    // const user = JSON.parse(localStorage.getItem('user'));
+    useEffect(() => {
+        try {
+            const raw = typeof window !== 'undefined' ? localStorage.getItem('user') : null;
+            if (raw) setUser(JSON.parse(raw));
+        } catch (e) {
+            setUser(null);
+        }
+    }, []);
+
+    const isVendor = user?.role === 'vendor' || user?.role === 'admin';
 
     return (
         <>
             <link rel="preconnect" href="https://fonts.googleapis.com" />
-            <link
-                rel="preconnect"
-                href="https://fonts.gstatic.com"
-                crossOrigin="anonymous"
-            />
-            <Link
-                href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap"
-                rel="stylesheet"
-            />
-            <header className="bg-white shadow-lg sticky top-0 z-50 font-[Poppins]">
+            <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+            <Link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+            <header className="sticky top-0 z-50 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 shadow-lg font-[Poppins]">
                 <div className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex justify-between items-center h-16">
                         {/* Logo */}
-                        <div className="flex-shrink-0">
-                            <Link
-                                href="/"
-                                className="text-3xl font-bold text-blue-800 tracking-tight"
-                            >
+                        <div className="flex items-center gap-4">
+                            <button onClick={() => setMobileOpen(!mobileOpen)} className="md:hidden p-2 text-white hover:opacity-90">
+                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                                </svg>
+                            </button>
+
+                            <Link href="/" className="text-2xl md:text-3xl font-bold text-white tracking-tight">
                                 Explore Bangladesh
                             </Link>
                         </div>
 
-                        {/* Navigation and Actions */}
-                        <div className="flex items-center space-x-6">
-                            {/* Nav Links - Conditionally rendered based on user role */}
-                            <nav className="hidden md:flex items-center space-x-6 text-sm font-medium text-gray-600">
-                                {/* For Admin Users */}
-                                {user?.role === 'admin' && (
-                                    <>
-                                        <Link
-                                            href="/admin"
-                                            className="hover:text-blue-600 transition-colors duration-200"
-                                        >
-                                            Admin Dashboard
-                                        </Link>
-                                        <Link
-                                            href="/allDestination"
-                                            className="hover:text-blue-600 transition-colors duration-200"
-                                        >
-                                            Destinations
-                                        </Link>
-                                    </>
-                                )}
+                        {/* Desktop Links */}
+                        <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-white">
+                            <Link href="/packages" className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-full transition">
+                                Tour Packages
+                            </Link>
+                            <Link href="/allDestination" className="hover:underline">Destinations</Link>
+                            <Link href="/services" className="hover:underline">Services</Link>
 
-                                {/* For Vendor Users - ONLY VENDORS SEE THESE LINKS */}
-                                {user?.role === 'vendor' && (
-                                    <>
-                                        <Link
-                                            href="/addPackage"
-                                            className="hover:text-blue-600 transition-colors duration-200"
-                                        >
-                                            Add Package
-                                        </Link>
-                                        <Link
-                                            href="/addPlaces"
-                                            className="hover:text-blue-600 transition-colors duration-200"
-                                        >
-                                            Add Tour Place
-                                        </Link>
-                                    </>
-                                )}
+                            {isVendor && (
+                                <>
+                                    <Link href="/addPackage" className="hover:underline">Add Package</Link>
+                                    <Link href="/addPlaces" className="hover:underline">Add Place</Link>
+                                    <Link href="/vendor/bookings" className="px-3 py-1 bg-yellow-400 text-black rounded hover:brightness-95">Requests</Link>
+                                </>
+                            )}
 
-                                {/* For Regular Users & Guests */}
-                                {(!user?.role || user?.role === 'user') && (
-                                    <>
-                                        <Link
-                                            href="/allDestination"
-                                            className="hover:text-blue-600 transition-colors duration-200"
-                                        >
-                                            Destinations
-                                        </Link>
-                                        <Link
-                                            href="#world-tour"
-                                            className="hover:text-blue-600 transition-colors duration-200"
-                                        >
-                                            Adventure Styles
-                                        </Link>
-                                    </>
-                                )}
+                            {!isVendor && (
+                                <Link href="/allDestination" className="hover:underline">Adventure Styles</Link>
+                            )}
+                        </nav>
 
-                                {/* Common Links for All Users */}
-                                <Link
-                                    href="/packages"
-                                    className="px-4 py-2 bg-blue-500 text-white rounded-full hover:bg-blue-600 transition-colors duration-200 transform hover:scale-105"
-                                >
-                                    Tour Packages
-                                </Link>
-                                
-                                {/* Additional common link */}
-                                <Link
-                                    href="/allDestination"
-                                    className="hover:text-blue-600 transition-colors duration-200"
-                                >
-                                    All Destinations
-                                </Link>
-                            </nav>
-
-                            {/* Right-side Actions */}
-                            <div className="flex items-center space-x-4">
-                                {/* Admin Link - Only show for admin users */}
-                                {user?.role === 'admin' && (
-                                    <Link
-                                        href="/admin"
-                                        className="hidden lg:block text-sm font-semibold text-blue-600 hover:underline"
-                                    >
-                                        Admin Panel
-                                    </Link>
-                                )}
-
-                                {/* Vendor Dashboard Link - Only show for vendor users */}
-                                {/* {user?.role === 'vendor' && (
-                                    <Link
-                                        href="/vendor/dashboard"
-                                        className="hidden lg:block text-sm font-semibold text-blue-600 hover:underline"
-                                    >
-                                        Vendor Dashboard
-                                    </Link>
-                                )} */}
-
-                                {/* Language Selector */}
-                                <button className="flex items-center space-x-1 hover:text-blue-600 transition-colors duration-200">
-                                    <svg
-                                        xmlns="http://www.w3.org/2000/svg"
-                                        className="h-5 w-5"
-                                        viewBox="0 0 20 20"
-                                        fill="currentColor"
-                                    >
-                                        <path
-                                            fillRule="evenodd"
-                                            d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4H6a1 1 0 100 2h3v3a1 1 0 102 0v-3h3a1 1 0 100-2h-3V6z"
-                                            clipRule="evenodd"
-                                        />
-                                    </svg>
-                                    <span>EN</span>
-                                </button>
-
-                                {/* Favorites Button */}
-                                <button className="text-gray-600 hover:text-blue-600 transition-colors duration-200">
-                                    <svg
-                                        xmlns="http://www.w3.org/2000/svg"
-                                        className="h-6 w-6"
-                                        fill="none"
-                                        viewBox="0 0 24 24"
-                                        stroke="currentColor"
-                                    >
-                                        <path
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                            strokeWidth={2}
-                                            d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
-                                        />
-                                    </svg>
-                                </button>
-                                
-                                {/* User Icon Dropdown - This should handle auth state */}
+                        {/* Right-side */}
+                        <div className="flex items-center gap-4">
+                            <div className="hidden md:block">
                                 <UserIconDropdown />
                             </div>
                         </div>
                     </div>
                 </div>
+
+                {/* Mobile menu */}
+                {mobileOpen && (
+                    <div className="md:hidden bg-white/10 backdrop-blur-sm py-4">
+                        <div className="px-4 space-y-3">
+                            <Link href="/packages" className="block text-white font-semibold">Tour Packages</Link>
+                            <Link href="/allDestination" className="block text-white">Destinations</Link>
+                            <Link href="/services" className="block text-white">Services</Link>
+                            {isVendor && (
+                                <>
+                                    <Link href="/addPackage" className="block text-white">Add Package</Link>
+                                    <Link href="/addPlaces" className="block text-white">Add Place</Link>
+                                    <Link href="/vendor/bookings" className="block text-yellow-200 font-semibold">Requests</Link>
+                                </>
+                            )}
+                            {!isVendor && (
+                                <Link href="/allDestination" className="block text-white">Adventure Styles</Link>
+                            )}
+                        </div>
+                    </div>
+                )}
             </header>
         </>
     );

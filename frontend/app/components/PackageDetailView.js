@@ -1,11 +1,34 @@
 "use client";
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
-import BookingModal from './BookingModal';
+import { useRouter } from 'next/navigation';
+import { createBooking, getMyBookings } from '../utils/Booking_CRUD';
 
 const PackageDetailView = ({ item }) => {
   const [imageErrors, setImageErrors] = useState({});
   const [isBookingOpen, setIsBookingOpen] = useState(false);
+  const [bookingLoading, setBookingLoading] = useState(false);
+  const [bookingMessage, setBookingMessage] = useState(null);
+  const [hasActiveBooking, setHasActiveBooking] = useState(false);
+  const router = useRouter();
+
+  // Check whether the current user already has an active booking for this package
+  useEffect(() => {
+    const check = async () => {
+      try {
+        const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
+        if (!token) return;
+        const resp = await getMyBookings(token);
+        const data = resp && resp.data ? resp.data : resp;
+        if (!Array.isArray(data)) return;
+        const found = data.find(b => (b.package && (b.package._id || b.package)) == item._id && ['pending','confirmed'].includes(b.status));
+        setHasActiveBooking(!!found);
+      } catch (err) {
+        console.error('Failed to check existing bookings', err);
+      }
+    };
+    check();
+  }, [item._id]);
 
   if (!item) return <div className="p-6">No package details found.</div>;
 
@@ -88,20 +111,54 @@ const PackageDetailView = ({ item }) => {
                     {formatCurrency(item.price)}
                   </div>
                   <div className="text-sm text-gray-500">Total package price</div>
-                  <button 
-                    onClick={() => setIsBookingOpen(true)}
-                    className="mt-2 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg shadow-md transition-all duration-200 flex items-center gap-2"
-                  >
-                    <span>Book Now</span>
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="flex flex-col items-end gap-2">
+                    <button
+                      onClick={async () => {
+                        // Quick booking: use today's date and 1 participant
+                        try {
+                          setBookingLoading(true);
+                          setBookingMessage(null);
+                          const token = localStorage.getItem('accessToken');
+                          if (!token) {
+                            setBookingMessage('You must be logged in to book.');
+                            setBookingLoading(false);
+                            return;
+                          }
+
+                          const today = new Date();
+                          const payload = {
+                            packageId: item._id,
+                            bookingDate: today.toISOString().split('T')[0],
+                            participants: 1,
+                            contactPhone: (JSON.parse(localStorage.getItem('user') || '{}').phone) || '',
+                            specialRequests: ''
+                          };
+
+                          console.log('Quick booking payload', payload);
+                          await createBooking(payload, token);
+                          setBookingMessage('Booking successful. Redirecting to My Bookings...');
+                          setTimeout(() => router.push('/bookings'), 1200);
+                        } catch (err) {
+                          console.error('Quick booking failed', err);
+                          setBookingMessage(err?.message || 'Booking failed');
+                        } finally {
+                          setBookingLoading(false);
+                        }
+                      }}
+                      disabled={bookingLoading || hasActiveBooking}
+                      className="mt-2 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg shadow-md transition-all duration-200 flex items-center gap-2 disabled:opacity-50"
+                    >
+                      <span>{bookingLoading ? 'Booking...' : 'Book Now'}</span>
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                    </svg>
-                  </button>
-                  <BookingModal 
-                    isOpen={isBookingOpen} 
-                    onClose={() => setIsBookingOpen(false)} 
-                    packageItem={item} 
-                  />
+                      </svg>
+                    </button>
+                    {hasActiveBooking ? (
+                      <div className="text-sm text-yellow-700 mt-1">You already have an active booking for this package.</div>
+                    ) : (
+                      bookingMessage && <div className="text-sm text-gray-700 mt-1">{bookingMessage}</div>
+                    )}
+                  </div>
                 </div>
               )}
             </div>

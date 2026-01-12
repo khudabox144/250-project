@@ -84,9 +84,9 @@ const LoginForm = () => {
       
     } catch (error) {
       console.error("Login Error:", error);
-      setMessage(
-        `Login failed: ${error.message || "Please check your credentials."}`
-      );
+      // Prefer server-provided message when available
+      const serverMsg = error?.response?.data?.message || error?.response?.data?.message || error?.message;
+      setMessage(`Login failed: ${serverMsg || "Please check your credentials."}`);
     } finally {
       setIsLoading(false);
     }

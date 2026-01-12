@@ -21,7 +21,11 @@ export const createBooking = async (bookingData, token) => {
 
   if (!response.ok) {
     const msg = (data && data.message) || text || `Request failed with status ${response.status}`;
-    throw new Error(msg);
+    const err = new Error(msg);
+    // attach extra info for callers
+    err.status = response.status;
+    err.data = data;
+    throw err;
   }
 
   return data;
@@ -45,3 +49,50 @@ export const getMyBookings = async (token) => {
 
     return await response.json();
 }
+
+export const getVendorBookings = async (token) => {
+  const response = await fetch(`${API_BASE_URL}/bookings/vendor-bookings`, {
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  });
+
+  const text = await response.text();
+  let data = null;
+  try { data = text ? JSON.parse(text) : null; } catch(e) {}
+
+  if (!response.ok) {
+    const msg = (data && data.message) || text || `Failed to fetch vendor bookings (status ${response.status})`;
+    const err = new Error(msg);
+    err.status = response.status;
+    err.data = data;
+    throw err;
+  }
+
+  return data;
+};
+
+export const updateBookingStatus = async (id, update, token) => {
+  const response = await fetch(`${API_BASE_URL}/bookings/${id}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify(update)
+  });
+
+  const text = await response.text();
+  let data = null;
+  try { data = text ? JSON.parse(text) : null; } catch(e) {}
+
+  if (!response.ok) {
+    const msg = (data && data.message) || text || `Failed to update booking (status ${response.status})`;
+    const err = new Error(msg);
+    err.status = response.status;
+    err.data = data;
+    throw err;
+  }
+
+  return data;
+};
