@@ -5,46 +5,18 @@ import { getAllDivisionsWithDistricts, testDivisionAPI } from "../utils/Location
 import LoadingSpinner from "../common/LoadingSpinner";
 
 // --- Image Map for Divisions ---
-const DIVISION_IMAGES = {
-  "Dhaka": "https://t3.ftcdn.net/jpg/05/98/42/60/360_F_598426018_dZSafUODg9I0cEBJrj8F4AHzYmrXrHdW.jpg",
-  "Chittagong": "https://media-cdn.tripadvisor.com/media/photo-s/0a/74/f0/27/chittagong-port.jpg",
-  "Sylhet": "https://grandsylhet.com/wp-content/uploads/2025/01/Best-Tourist-Places-in-Sylhet-1024x538.webp",
-  "Khulna": "https://i.natgeofe.com/n/a50f7239-ff6d-4874-9448-25d94d8d1c80/sundarbans-bangladesh.jpg",
-  "Barisal": "https://barishaltourismcenters.wordpress.com/wp-content/uploads/2018/11/pi.jpg",
-  "Rajshahi": "https://ecdn.dhakatribune.net/contents/cache/images/640x0x1/uploads/media/2023/09/13/Rajshahi-Development-5-f6819dd6ea94084fd01a011dac7ca45d.jpg",
-  "Rangpur": "https://dynamic-media-cdn.tripadvisor.com/media/photo-o/1a/60/70/51/caption.jpg?w=800&h=800&s=1",
-  "Mymensingh": "https://i.pinimg.com/736x/0b/11/88/0b11881451048581d97df71a2b25d64e.jpg"
-};
-
-// =============== Fake Data for Testing (fallback) ===============
-const FALLBACK_DIVISIONS = [
-  {
-    _id: "1",
-    name: "Dhaka",
-    districts: [
-      { _id: "d1", name: "Dhaka", tourPlaces: [] },
-      { _id: "d2", name: "Gazipur", tourPlaces: [] },
-      { _id: "d8", name: "Narayanganj", tourPlaces: [] },
-    ],
-  },
-  {
-    _id: "2",
-    name: "Chittagong",
-    districts: [
-      { _id: "d3", name: "Cox's Bazar", tourPlaces: [] },
-      { _id: "d4", name: "Bandarban", tourPlaces: [] },
-      { _id: "d7", name: "Chittagong", tourPlaces: [] },
-    ],
-  },
-  {
-    _id: "3",
-    name: "Sylhet",
-    districts: [
-      { _id: "d5", name: "Sylhet", tourPlaces: [] },
-      { _id: "d6", name: "Sunamganj", tourPlaces: [] },
-    ],
-  },
+const DIVISION_BG_IMAGES = [
+  "https://www.tbsnews.net/sites/default/files/styles/big_2/public/images/2022/01/28/sylhet_talha-chowdhury.jpg",
+  
 ];
+
+
+// Random image generator function 
+const getRandomDivisionImage=()=>{
+  const randomIdx=Math.floor(Math.random()*DIVISION_BG_IMAGES.length);
+  return DIVISION_BG_IMAGES[randomIdx];
+}
+
 
 // =============== BangladeshTourTest Component ===============
 const BangladeshTourTest = () => {
@@ -291,7 +263,7 @@ const BangladeshTourTest = () => {
         {/* ========== Divisions Grid ========== */}
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6 sm:gap-8">
           {divisions.map((division) => {
-            const divisionImage = DIVISION_IMAGES[division.name] || "https://images.unsplash.com/photo-1540959733332-8cbd5d1a45f9?w=400&h=300&fit=crop";
+            const divisionImage =  getRandomDivisionImage();
             const districts = getDistricts(division);
             const districtsCount = getDistrictsCount(division);
             

@@ -459,6 +459,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getAllTourPlaces } from '../utils/TourPlace_CRUD'; 
+import { getMyTourPackages } from '../utils/TourPackage_CRUD';
 const UserProfile = () => {
   const [user, setUser] = useState(null);
   const [stats, setStats] = useState(null);
@@ -488,7 +489,7 @@ const UserProfile = () => {
       const parsedUser = JSON.parse(userData);
       console.log('✅ Profile - User data parsed successfully:', parsedUser);
       setUser(parsedUser);
-      loadUserData(parsedUser._id);
+      loadUserData(parsedUser._id, parsedUser.role);
     } catch (error) {
       console.error('❌ Profile - Error parsing user data:', error);
       router.push('/auth/login');
@@ -497,7 +498,7 @@ const UserProfile = () => {
     }
   }, [router]);
 
-  const loadUserData = async (userId) => {
+  const loadUserData = async (userId, role) => {
     try {
       setStatsLoading(true);
       setError(null);
@@ -529,9 +530,21 @@ const UserProfile = () => {
 
       setUserPosts(userPostsData);
 
-      // For packages, you'll need to implement similar logic
-      // Currently setting empty array since we don't have package service
-      setUserPackages([]);
+      // For packages, load vendor packages when role is vendor/admin
+      if (role === 'vendor' || role === 'admin') {
+        try {
+          const packages = await getMyTourPackages();
+          console.log('📦 Vendor packages loaded:', packages);
+          // Ensure we only include packages belonging to this user (safety)
+          userPackagesData = packages.filter(p => {
+            const vid = p.vendor?._id || p.vendor;
+            return String(vid) === String(userId);
+          });
+        } catch (pkgErr) {
+          console.error('❌ Error loading vendor packages:', pkgErr);
+        }
+      }
+      setUserPackages(userPackagesData);
 
       // Calculate statistics
       const userStats = {
