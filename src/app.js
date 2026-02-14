@@ -51,6 +51,15 @@ app.get('/', (req, res) => {
   res.status(200).json({ status: 'success', message: 'API is running', routes: '/api/*' });
 });
 
+// API index route: useful for /api requests without a specific endpoint
+app.get('/api', (req, res) => {
+  res.status(200).json({
+    status: 'success',
+    message: 'API root - available endpoints',
+    endpoints: ['/api/auth', '/api/users', '/api/tours', '/api/packages', '/api/reviews', '/api/admin']
+  });
+});
+
 app.use((req, res, next) => {
   next(new AppError(`Cannot find ${req.originalUrl} on this server!`, 404));
 });
