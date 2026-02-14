@@ -15,9 +15,10 @@ const path = require("path");
 const app = express();
 const cors = require('cors');
 app.use(express.json());
-// CORS: allow origins from env `CLIENT_ORIGIN` (comma-separated) or default to localhost.
+// CORS: allow origins from env `CLIENT_ORIGIN` (comma-separated).
+// For local `.env` compatibility we also accept `CLIENT_URL`.
 // Example: CLIENT_ORIGIN=https://your-frontend.example.com,http://localhost:3000
-const clientOrigin = process.env.CLIENT_ORIGIN || "http://localhost:3000";
+const clientOrigin = process.env.CLIENT_ORIGIN || process.env.CLIENT_URL || "http://localhost:3000";
 const allowedOrigins = clientOrigin.split(',').map((s) => s.trim());
 app.use(
   cors({
@@ -44,6 +45,11 @@ app.use("/api/divisions", divisionRoutes);
 app.use("/api/districts", districtRoutes);
 app.use("/api/map", require("./routes/map.routes.js"));
 app.use("/api/bookings", require("./routes/booking.routes.js"));
+
+// Root health-check / basic info route
+app.get('/', (req, res) => {
+  res.status(200).json({ status: 'success', message: 'API is running', routes: '/api/*' });
+});
 
 app.use((req, res, next) => {
   next(new AppError(`Cannot find ${req.originalUrl} on this server!`, 404));

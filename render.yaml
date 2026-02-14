@@ -12,23 +12,37 @@ services:
     buildCommand: "npm install"
     startCommand: "npm start"
     envVars:
+      # Frontend origin for CORS. You can also set CLIENT_URL locally in .env
       - key: CLIENT_ORIGIN
         value: "https://your-frontend.vercel.app"
-      # Secrets (set these in Render dashboard, do NOT commit values):
+      # Database
       - key: MONGO_URI
         value: "REDACTED"
-        # mark as sensitive in Render UI
+      # Auth
       - key: JWT_SECRET
         value: "REDACTED"
-      - key: CLOUDINARY_NAME
+      - key: JWT_EXPIRES
+        value: "7d"
+      # Cloudinary (backend accepts multiple naming variants)
+      - key: CLOUDINARY_CLOUD_NAME
         value: "REDACTED"
-      - key: CLOUDINARY_KEY
+      - key: CLOUDINARY_API_KEY
         value: "REDACTED"
-      - key: CLOUDINARY_SECRET
+      - key: CLOUDINARY_API_SECRET
         value: "REDACTED"
+      # Email (optional)
       - key: EMAIL_USER
         value: "REDACTED"
       - key: EMAIL_PASS
         value: "REDACTED"
+      - key: SMTP_HOST
+        value: "REDACTED"
+      - key: SMTP_PORT
+        value: "REDACTED"
+      - key: SMTP_SERVICE
+        value: "REDACTED"
+      - key: EMAIL_FROM
+        value: "REDACTED"
+      # Map routing (optional)
       - key: OSRM_SERVER_URL
         value: "REDACTED"
