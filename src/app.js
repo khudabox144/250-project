@@ -15,11 +15,21 @@ const path = require("path");
 const app = express();
 const cors = require('cors');
 app.use(express.json());
-// Allow frontend on localhost:3000 in development. Adjust origin for production.
-app.use(cors({
-  origin: "http://localhost:3000",
-  credentials: true
-}));
+// CORS: allow origins from env `CLIENT_ORIGIN` (comma-separated) or default to localhost.
+// Example: CLIENT_ORIGIN=https://your-frontend.example.com,http://localhost:3000
+const clientOrigin = process.env.CLIENT_ORIGIN || "http://localhost:3000";
+const allowedOrigins = clientOrigin.split(',').map((s) => s.trim());
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // allow non-browser requests (curl, server-to-server) when no origin
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin)) return callback(null, true);
+      return callback(new Error('CORS policy does not allow this origin.'), false);
+    },
+    credentials: true,
+  })
+);
 
 // Serve uploaded files (so frontend can access image URLs at /uploads/filename)
 app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));

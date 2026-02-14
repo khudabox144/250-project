@@ -1,0 +1,34 @@
+# Render infra manifest for Explore backend (example)
+# AFTER pushing to GitHub, you can import this or use Render's "Deploy from repo" flow.
+# Do NOT include secrets in this file; set them in Render dashboard or via Render CLI.
+
+services:
+  - type: web
+    name: explore-backend
+    env: node
+    plan: free
+    branch: main
+    repo: "<your-github-repo-url>" # replace with your repo URL
+    buildCommand: "npm install"
+    startCommand: "npm start"
+    envVars:
+      - key: CLIENT_ORIGIN
+        value: "https://your-frontend.vercel.app"
+      # Secrets (set these in Render dashboard, do NOT commit values):
+      - key: MONGO_URI
+        value: "REDACTED"
+        # mark as sensitive in Render UI
+      - key: JWT_SECRET
+        value: "REDACTED"
+      - key: CLOUDINARY_NAME
+        value: "REDACTED"
+      - key: CLOUDINARY_KEY
+        value: "REDACTED"
+      - key: CLOUDINARY_SECRET
+        value: "REDACTED"
+      - key: EMAIL_USER
+        value: "REDACTED"
+      - key: EMAIL_PASS
+        value: "REDACTED"
+      - key: OSRM_SERVER_URL
+        value: "REDACTED"
